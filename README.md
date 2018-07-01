@@ -1,7 +1,7 @@
 # go 1.11 webassembly experiments
 
 * [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
-* [rainbow-mouse](://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
+* [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
 
 ## getting go1.11 beta
 
