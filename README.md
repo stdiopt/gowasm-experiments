@@ -7,15 +7,13 @@ https://golang.org/dl/#go1.11beta1
 
 and in my case I just unpacked in `/usr/lib/go`
 
-## Bouncy
+## Building and running
 
 ```sh
-$ cd bouncy
+$ cd {proj} # sub folder (i.e. bouncy, rainbow-mouse)
 $ ./build.sh
-```
-
-Serve with caddy
-
-```sh
 $ caddy
 ```
+
+Serve with caddy or anything else that is able to set the mimetype
+'application/wasm' for .wasm files
