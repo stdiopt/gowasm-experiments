@@ -1,5 +1,9 @@
 # go 1.11 webassembly experiments
 
+
+* (Bouncy)[bouncy]
+* (rainbow-mouse)[rainbow-mouse]
+
 ## getting go1.11 beta
 
 Get one of those
