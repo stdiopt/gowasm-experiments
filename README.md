@@ -2,6 +2,7 @@
 
 * [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
 * [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
+* [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
 
 ## getting go1.11 beta
 

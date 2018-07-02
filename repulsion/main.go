@@ -60,10 +60,6 @@ func main() {
 		}
 		dt.speed = fval
 	}))
-	doc.Call("getElementById", "lines").Call("addEventListener", "change", js.NewCallback(func(args []js.Value) {
-		evt := args[0]
-		dt.lines = evt.Get("target").Get("checked").Bool()
-	}))
 
 	dt.SetNDots(100)
 	dt.lines = false
@@ -112,28 +108,51 @@ func (dt *DotThing) Update(dtTime float64) {
 
 	// Update
 	for i, dot := range dt.dots {
-		dir := [2]float64{}
-		// Bounce
-		if dot.pos[0] < 0 {
-			dot.pos[0] = 0
+		if dot.pos[0] < dot.size {
+			dot.pos[0] = dot.size
 			dot.dir[0] *= -1
 		}
-		if dot.pos[0] > width {
-			dot.pos[0] = width
+		if dot.pos[0] > width-dot.size {
+			dot.pos[0] = width - dot.size
 			dot.dir[0] *= -1
 		}
 
-		if dot.pos[1] < 0 {
-			dot.pos[1] = 0
+		if dot.pos[1] < dot.size {
+			dot.pos[1] = dot.size
 			dot.dir[1] *= -1
 		}
 
-		if dot.pos[1] > height {
-			dot.pos[1] = height
+		if dot.pos[1] > height-dot.size {
+			dot.pos[1] = height - dot.size
 			dot.dir[1] *= -1
 		}
-		dir[0] = dot.dir[0]
-		dir[1] = dot.dir[1]
+
+		mdx := mousePos[0] - dot.pos[0]
+		mdy := mousePos[1] - dot.pos[1]
+		d := math.Sqrt(mdx*mdx + mdy*mdy)
+		if d < 200 {
+			dInv := 1 - d/200
+			dot.dir[0] += (-mdx / d) * dInv * 8
+			dot.dir[1] += (-mdy / d) * dInv * 8
+		}
+		for j, dot2 := range dt.dots {
+			if i == j {
+				continue
+			}
+			mx := dot2.pos[0] - dot.pos[0]
+			my := dot2.pos[1] - dot.pos[1]
+			d := math.Sqrt(mx*mx + my*my)
+			if d < 100 {
+				dInv := 1 - d/100
+				dot.dir[0] += (-mx / d) * dInv
+				dot.dir[1] += (-my / d) * dInv
+			}
+		}
+		dot.dir[0] *= 0.1 //friction
+		dot.dir[1] *= 0.1 //friction
+
+		dot.pos[0] += dot.dir[0] * dt.speed * dtTime * 10
+		dot.pos[1] += dot.dir[1] * dt.speed * dtTime * 10
 
 		ctx.Set("globalAlpha", 0.5)
 		ctx.Call("beginPath")
@@ -143,41 +162,6 @@ func (dt *DotThing) Update(dtTime float64) {
 		ctx.Call("arc", dot.pos[0], dot.pos[1], dot.size, 0, 2*math.Pi)
 		ctx.Call("fill")
 
-		mdx := mousePos[0] - dot.pos[0]
-		mdy := mousePos[1] - dot.pos[1]
-		d := math.Sqrt(mdx*mdx + mdy*mdy)
-		if d < 200 {
-			ctx.Set("globalAlpha", 1-d/200)
-			ctx.Call("beginPath")
-			ctx.Call("moveTo", dot.pos[0], dot.pos[1])
-			ctx.Call("lineTo", mousePos[0], mousePos[1])
-			ctx.Call("stroke")
-			if d > 100 { // move towards mouse
-				dir[0] = (mdx / d) * 2
-				dir[1] = (mdy / d) * 2
-			} else { // do not move
-				dir[0] = 0
-				dir[1] = 0
-			}
-		}
-
-		if dt.lines {
-			for _, dot2 := range dt.dots[i+1:] {
-				mx := dot2.pos[0] - dot.pos[0]
-				my := dot2.pos[1] - dot.pos[1]
-				d := mx*mx + my*my
-				if d < lineDistSq {
-					ctx.Set("globalAlpha", 1-d/lineDistSq)
-					ctx.Call("beginPath")
-					ctx.Call("moveTo", dot.pos[0], dot.pos[1])
-					ctx.Call("lineTo", dot2.pos[0], dot2.pos[1])
-					ctx.Call("stroke")
-				}
-			}
-		}
-
-		dot.pos[0] += dir[0] * dt.speed * dtTime
-		dot.pos[1] += dir[1] * dt.speed * dtTime
 	}
 }
 
