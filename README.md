@@ -3,6 +3,7 @@
 * [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
 * [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
 * [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
+* [bumpy](https://stdiopt.github.io/gowasm-experiments/bumpy)
 
 ## getting go1.11 beta
 
@@ -15,6 +16,7 @@ and in my case I just unpacked in `/usr/lib/go`
 
 ```sh
 $ cd {proj} # sub folder (i.e. bouncy, rainbow-mouse)
+$ go get -v # possibly ignore the js error
 $ ./build.sh
 $ caddy
 ```
