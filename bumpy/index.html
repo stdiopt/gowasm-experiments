@@ -1,0 +1,71 @@
+<html>
+	<head>
+		<title>go webassembly - repulsion</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js"></script>
+		<script src="wasm_exec.js"></script>
+		<script>
+			hljs.configure({tabReplace: '  '});
+			const go = new Go();
+			WebAssembly.instantiateStreaming(fetch('main.wasm'),go.importObject).then( res=> {
+				go.run(res.instance)	
+			})
+			window.onload = function () {
+				linkRange('speed','speed-value')
+
+				// Go code background
+				fetch('main.go').then( res=> res.text()).then(res => {
+					let codeEl = document.getElementById("code")
+					codeEl.innerHTML = res.replace(/&/g,"&amp;")
+																.replace(/>/g,"&gt;")
+																.replace(/</g,"&lt;") 
+					hljs.highlightBlock(codeEl)
+				})
+			}
+			function linkRange(id, idValue) {
+				let El = document.getElementById(id)
+				let valEl = document.getElementById(idValue)
+				El.addEventListener("input", function() { valEl.innerHTML = El.value })
+				valEl.innerHTML = El.value 
+			}
+		</script>
+	<style>
+body,pre { margin:0;padding:0; }
+.control-group { 
+	display:flex; 
+	align-items:center; 
+	justify-content: flex-start;
+}
+.control-group label { flex:0; flex-basis: 100px; }
+.control-group input { flex-grow:0; }
+.control-group span { width:50px;}
+.control {
+	position:fixed;
+	padding:20px;
+	background: rgba(0,0,0,0.2);
+	color:#FFF;
+	top:0;right:0;
+}
+#mycanvas {
+	position:fixed;
+	opacity:0.9;
+	width: 100%;
+	height:100%;
+	top:0;right:0;bottom:0;left:0;
+}
+	</style>
+	</head>
+	<body>
+		<div class="code">
+			<pre><code id="code"></code></pre>
+		</div>
+		<canvas id="mycanvas"></canvas>
+		<div class="control">
+			<div id="fps">0</div>
+			<div class="control-group">
+				<label>Speed</label><input id="speed" type="range" min="0.1" max="4" step="0.1" value="1"> <span id="speed-value">1</span>
+			</div>
+		</div>
+	</body>
+</html>
