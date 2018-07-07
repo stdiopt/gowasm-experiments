@@ -226,6 +226,8 @@ func main() {
 				ctx.Call("beginPath")
 				ctx.Call("arc", 0, 0, shape.M_radius, 0, 2*math.Pi)
 				ctx.Call("fill")
+				ctx.Call("moveTo", 0, 0)
+				ctx.Call("lineTo", 0, shape.M_radius)
 				ctx.Call("stroke")
 			}
 			ctx.Call("restore")
