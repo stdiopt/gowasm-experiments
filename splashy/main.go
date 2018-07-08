@@ -302,7 +302,7 @@ func (t *Thing) AddCircle(mx, my float64) {
 	shape.M_radius = (10 + rand.Float64()*10) * worldScale
 	ft := obj1.CreateFixture(shape, 1)
 	ft.M_friction = 0.2
-	ft.M_restitution = 0.9
+	ft.M_restitution = 0.6
 }
 
 //// SHADERS & Utils
