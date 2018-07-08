@@ -1,5 +1,5 @@
 //Wasming
-// compile: GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
+// compile: gopherjs build -o main.js ./main.go
 package main
 
 import (
@@ -8,21 +8,22 @@ import (
 	"math"
 	"math/rand"
 	"strconv"
-	"syscall/js"
+
+	"github.com/gopherjs/gopherjs/js"
 )
 
 var (
 	width      float64
 	height     float64
 	mousePos   [2]float64
-	ctx        js.Value
+	ctx        *js.Object
 	lineDistSq float64 = 100 * 100
 )
 
 func main() {
 
 	// Init Canvas stuff
-	doc := js.Global().Get("document")
+	doc := js.Global.Get("document")
 	canvasEl := doc.Call("getElementById", "mycanvas")
 	width = doc.Get("body").Get("clientWidth").Float()
 	height = doc.Get("body").Get("clientHeight").Float()
@@ -33,47 +34,43 @@ func main() {
 	done := make(chan struct{}, 0)
 
 	// Handle mouse
-	doc.Call("addEventListener", "mousemove", js.NewCallback(func(args []js.Value) {
-		e := args[0]
-		mousePos[0] = e.Get("clientX").Float()
-		mousePos[1] = e.Get("clientY").Float()
-	}))
+	doc.Call("addEventListener", "mousemove", func(evt *js.Object) {
+		mousePos[0] = evt.Get("clientX").Float()
+		mousePos[1] = evt.Get("clientY").Float()
+	})
 
 	dt := DotThing{speed: 160}
 
 	// Event Handlers for DotThing
-	doc.Call("getElementById", "count").Call("addEventListener", "change", js.NewCallback(func(args []js.Value) {
-		evt := args[0]
+	doc.Call("getElementById", "count").Call("addEventListener", "change", func(evt *js.Object) {
 		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
 		if err != nil {
 			log.Println("Invalid value", err)
 			return
 		}
 		dt.SetNDots(intVal)
-	}))
-	doc.Call("getElementById", "speed").Call("addEventListener", "input", js.NewCallback(func(args []js.Value) {
-		evt := args[0]
+	})
+	doc.Call("getElementById", "speed").Call("addEventListener", "input", func(evt *js.Object) {
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
 			log.Println("Invalid value", err)
 			return
 		}
 		dt.speed = fval
-	}))
-	doc.Call("getElementById", "lines").Call("addEventListener", "change", js.NewCallback(func(args []js.Value) {
-		evt := args[0]
+	})
+	doc.Call("getElementById", "lines").Call("addEventListener", "change", func(evt *js.Object) {
 		dt.lines = evt.Get("target").Get("checked").Bool()
-	}))
+	})
 
 	dt.SetNDots(100)
 	dt.lines = false
-	var renderFrame js.Callback
-	var tmark float64
+	var renderFrame func(dtTime *js.Object)
+	var tmark float64 //= float64(time.Now().UnixNano() / 1000000)
 	var markCount = 0
 	var tdiffSum float64
 
-	renderFrame = js.NewCallback(func(args []js.Value) {
-		now := args[0].Float()
+	renderFrame = func(dtTime *js.Object) {
+		now := dtTime.Float() //float64(time.Now().UnixNano() / 1000000) //args[0].Float()
 		tdiff := now - tmark
 		tdiffSum += now - tmark
 		markCount++
@@ -88,16 +85,16 @@ func main() {
 		curBodyH := doc.Get("body").Get("clientHeight").Float()
 		if curBodyW != width || curBodyH != height {
 			width, height = curBodyW, curBodyH
-			canvasEl.Call("setAttribute", "width", width)
-			canvasEl.Call("setAttribute", "height", height)
+			canvasEl.Set("width", width)
+			canvasEl.Set("height", height)
 		}
 		dt.Update(tdiff / 1000)
 
-		js.Global().Call("requestAnimationFrame", renderFrame)
-	})
+		js.Global.Call("requestAnimationFrame", renderFrame)
+	}
 
 	// Start running
-	js.Global().Call("requestAnimationFrame", renderFrame)
+	js.Global.Call("requestAnimationFrame", renderFrame)
 
 	<-done
 
