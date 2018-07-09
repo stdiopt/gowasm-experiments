@@ -50,7 +50,7 @@ func main() {
 			verts = nil
 		}
 	})
-	defer keyUpEvt.Close()
+	defer keyUpEvt.Release()
 	mouseDownEvt := js.NewCallback(func(args []js.Value) {
 		defer func() {
 			// Recovering from possible box2d panic
@@ -135,10 +135,8 @@ func main() {
 			return
 		}
 		verts = append(verts, box2d.B2Vec2{mx, my})
-
-		// Close at some point create an object and set to nil
 	})
-	defer mouseDownEvt.Close()
+	defer mouseDownEvt.Release()
 
 	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
@@ -149,7 +147,7 @@ func main() {
 		}
 		simSpeed = fval
 	})
-	defer speedInputEvt.Close()
+	defer speedInputEvt.Release()
 
 	doc.Call("addEventListener", "keyup", keyUpEvt)
 	doc.Call("addEventListener", "mousedown", mouseDownEvt)
