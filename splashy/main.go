@@ -65,6 +65,7 @@ func main() {
 		mouseDown = false
 	})
 	defer mouseUpEvt.Release()
+
 	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
 		if !mouseDown {
 			return
@@ -78,6 +79,7 @@ func main() {
 		thing.AddCircle(mx, my)
 	})
 	defer mouseMoveEvt.Release()
+
 	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
@@ -141,8 +143,10 @@ type Thing struct {
 	dotBuf     js.Value
 	qBlur      *QuadFX
 	qThreshold *QuadFX
-	rtTex      [2]js.Value // render target Texture
-	rt         [2]js.Value // framebuffer(render target)
+	qEdge      *QuadFX
+
+	rtTex [2]js.Value // render target Texture
+	rt    [2]js.Value // framebuffer(render target)
 
 	rdotBuf []float32
 	taBuf   js.TypedArray
@@ -174,6 +178,11 @@ func (t *Thing) Init(gl js.Value) error {
 	}
 	t.qThreshold = &QuadFX{}
 	err = t.qThreshold.Init(gl, thresholdShader)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+	t.qEdge = &QuadFX{}
+	err = t.qEdge.Init(gl, edgeShader)
 	if err != nil {
 		log.Fatal("Error:", err)
 	}
@@ -265,23 +274,32 @@ func (t *Thing) Render(gl js.Value, dtTime float64) {
 	gl.Call("drawArrays", gl.Get("POINTS"), 0, count)
 	// /DotRenderer
 
+	texWidth := width / resDiv
+	texHeight := height / resDiv
+
 	/// FX Blurx4 TODO: better blur
 	for i := 0; i < 4; i++ {
 		gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), t.rt[1])
-		gl.Call("viewport", 0, 0, width/resDiv, height/resDiv)
+		gl.Call("viewport", 0, 0, texWidth, texHeight)
 		gl.Call("bindTexture", gl.Get("TEXTURE_2D"), t.rtTex[0])
 		t.qBlur.Render(gl)
 
 		gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), t.rt[0])
-		gl.Call("viewport", 0, 0, width/resDiv, height/resDiv)
+		gl.Call("viewport", 0, 0, texWidth, texHeight)
 		gl.Call("bindTexture", gl.Get("TEXTURE_2D"), t.rtTex[1])
 		t.qBlur.Render(gl)
 	}
+
 	/// FX Threshold to Screen
+	gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), t.rt[1])
+	gl.Call("viewport", 0, 0, texWidth, texHeight)
+	gl.Call("bindTexture", gl.Get("TEXTURE_2D"), t.rtTex[0])
+	t.qThreshold.Render(gl)
+
 	gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), nil)
 	gl.Call("viewport", 0, 0, width, height)
 	gl.Call("bindTexture", gl.Get("TEXTURE_2D"), t.rtTex[0])
-	t.qThreshold.Render(gl)
+	t.qEdge.Render(gl)
 
 }
 
@@ -353,6 +371,27 @@ void main() {
   gl_FragColor = colorSum / 9.0;
 }
 `
+const edgeShader = `
+precision mediump float;
+uniform sampler2D u_image;
+uniform vec2 u_textureSize;
+varying vec2 v_texCoord;
+void main() {
+	vec2 onePixel = vec2(1,1) / u_textureSize;
+	vec4 col = texture2D(u_image, v_texCoord);
+	if (col.a < 0.5) {
+		float a =
+			texture2D(u_image, v_texCoord + onePixel * vec2(0.5, 1)).a;
+		if (a > 0.6)
+			col = vec4(1.0,0.4,0.4,a*0.3);
+		else 
+			col = vec4(0.0);
+	}
+	gl_FragColor = col;
+
+}
+`
+
 const thresholdShader = `
 precision mediump float;
 uniform sampler2D u_image;
