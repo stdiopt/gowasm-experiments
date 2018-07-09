@@ -12,6 +12,8 @@ import (
 	"syscall/js"
 	// this box2d throws some unexpected panics
 	"github.com/ByteArena/box2d"
+
+	colorful "github.com/lucasb-eyer/go-colorful"
 )
 
 var (
@@ -19,9 +21,9 @@ var (
 	height     int
 	ctx        js.Value
 	simSpeed   = 1.0
-	worldScale = 0.0125 // 1/8
+	worldScale = 0.0125
 	resDiv     = 8
-	maxBodies  = 100
+	maxBodies  = 120
 )
 
 func main() {
@@ -90,7 +92,7 @@ func main() {
 		simSpeed = fval
 	})
 	defer speedInputEvt.Release()
-	// Handle events
+	// Events
 	doc.Call("addEventListener", "mousedown", mouseDownEvt)
 	doc.Call("addEventListener", "mouseup", mouseUpEvt)
 	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
@@ -98,7 +100,7 @@ func main() {
 
 	err := thing.Init(gl)
 	if err != nil {
-		js.Global().Call("alert", err.Error())
+		log.Println("Err Initializing thing:", err)
 		return
 	}
 
@@ -109,7 +111,7 @@ func main() {
 	var tdiffSum float64
 
 	renderFrame = js.NewCallback(func(args []js.Value) {
-		// Update the DOM less frequently
+		// Update the DOM less frequently TODO: func on this
 		now := args[0].Float()
 		tdiff := now - tmark
 		tdiffSum += tdiff
@@ -147,9 +149,7 @@ type Thing struct {
 	rtTex [2]js.Value // render target Texture
 	rt    [2]js.Value // framebuffer(render target)
 
-	rdotBuf []float32
-	taBuf   js.TypedArray
-	world   box2d.B2World
+	world box2d.B2World
 }
 
 func (t *Thing) Init(gl js.Value) error {
@@ -219,57 +219,43 @@ func (t *Thing) Init(gl js.Value) error {
 		t.AddCircle(rand.Float64()*float64(width)*worldScale, rand.Float64()*float64(height)*worldScale)
 	}
 
-	t.rdotBuf = make([]float32, (maxBodies+1)*3)
-	t.taBuf = js.TypedArrayOf(t.rdotBuf)
-
 	return nil
 }
 
 func (t *Thing) Render(gl js.Value, dtTime float64) {
 
+	texWidth := width / resDiv
+	texHeight := height / resDiv
 	t.world.Step(dtTime*simSpeed, 3, 3)
-	i := 0
+
+	gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), t.rt[0])
+	gl.Call("viewport", 0, 0, texWidth, texHeight) //texSize
+	gl.Call("clearColor", 0, 0, 0, 0)
+	gl.Call("clear", gl.Get("COLOR_BUFFER_BIT"))
+
+	// DotRenderer
+	gl.Call("useProgram", t.prog)
+
 	count := 0
 	for curBody := t.world.GetBodyList(); curBody != nil; curBody = curBody.M_next {
 		ft := curBody.M_fixtureList
-		switch shape := ft.M_shape.(type) {
-		case *box2d.B2CircleShape: // Box
-			t.rdotBuf[i] = float32(curBody.M_xf.P.X / (float64(width) * worldScale))
-			t.rdotBuf[i+1] = float32(curBody.M_xf.P.Y / (float64(height) * worldScale))
-			t.rdotBuf[i+2] = float32(shape.M_radius)
-			i += 3
+		if _, ok := ft.M_shape.(*box2d.B2CircleShape); !ok {
+			continue
 		}
+		x := float32(curBody.M_xf.P.X / (float64(width) * worldScale))  /* 0-1 */
+		y := float32(curBody.M_xf.P.Y / (float64(height) * worldScale)) /*0-1*/
+
+		col := colorful.Hsv(float64(360*count/maxBodies), 1, 1)
+		gl.Call("vertexAttrib2f", t.aPosition, x, y)
+		gl.Call("uniform4f", t.uFragColor, col.R, col.G, col.B, 1.0)
+		gl.Call("drawArrays", gl.Get("POINTS"), 0, 1)
+
 		count++
 		// Stop processing
 		if count > maxBodies {
 			break
 		}
 	}
-
-	// Render Dots to texture first
-	//
-	gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), t.rt[0])
-	gl.Call("viewport", 0, 0, width/resDiv, height/resDiv) //texSize
-
-	gl.Call("clearColor", 0, 0, 0, 0)
-	gl.Call("clear", gl.Get("COLOR_BUFFER_BIT"))
-
-	// DotRenderer
-	gl.Call("useProgram", t.prog)
-	gl.Call("bindBuffer", gl.Get("ARRAY_BUFFER"), t.dotBuf)
-
-	//ta := js.TypedArrayOf(t.rdotBuf)
-	gl.Call("bufferData", gl.Get("ARRAY_BUFFER"), t.taBuf, gl.Get("STATIC_DRAW")) // upload to gpu
-	//ta.Release()
-	gl.Call("enableVertexAttribArray", t.aPosition)
-	gl.Call("vertexAttribPointer", t.aPosition, 3, gl.Get("FLOAT"), false, 0, 0)
-	gl.Call("uniform4f", t.uFragColor, 1.0, 0.0, 0.0, 1.0)
-	gl.Call("uniform2f", t.uResolution, float64(width)*worldScale, float64(height)*worldScale)
-	gl.Call("drawArrays", gl.Get("POINTS"), 0, count)
-	// /DotRenderer
-
-	texWidth := width / resDiv
-	texHeight := height / resDiv
 
 	/// FX Blurx4 TODO: better blur
 	for i := 0; i < 4; i++ {
@@ -302,7 +288,7 @@ func (t *Thing) AddCircle(mx, my float64) {
 		// Search backwards for a circle (ignoring the walls/floors)
 		for ; b != nil; b = b.M_prev {
 			if _, ok := b.M_fixtureList.M_shape.(*box2d.B2CircleShape); ok {
-				t.world.DestroyBody(b) // Destroy first body
+				t.world.DestroyBody(b) // Destroy first found body
 				break
 			}
 		}
@@ -315,7 +301,7 @@ func (t *Thing) AddCircle(mx, my float64) {
 		GravityScale: 1.0,
 	})
 	shape := box2d.NewB2CircleShape()
-	shape.M_radius = (10 + rand.Float64()*10) * worldScale
+	shape.M_radius = 10 * worldScale
 	ft := obj1.CreateFixture(shape, 1)
 	ft.M_friction = 0.2
 	ft.M_restitution = 0.6
@@ -323,21 +309,23 @@ func (t *Thing) AddCircle(mx, my float64) {
 
 //// SHADERS & Utils
 const dotVertShader = `
-	attribute vec3 a_position;
-	void main () {
-		gl_Position = vec4(a_position.xy * 2.0 - 1.0, 0, 1);
-		gl_PointSize = a_position.z * 30.0;
-	}
+attribute vec4 a_position;
+void main () {
+	vec4 lpos= vec4(a_position.xy*2.0-1.0, 0, 1);
+	lpos.y = -lpos.y;
+	gl_Position = lpos;
+	gl_PointSize = 22.0/4.0;
+}
 `
 const dotFragShader = `
-	precision mediump float;
-	uniform vec4 uFragColor;
-	void main () {
-		vec2 pt = gl_PointCoord - vec2(0.5);
-		if(pt.x*pt.x+pt.y*pt.y > 0.25)
-		  discard;
-		gl_FragColor = uFragColor;
-	}
+precision mediump float;
+uniform vec4 uFragColor;
+void main () {
+	vec2 pt = gl_PointCoord - vec2(0.5);
+	if(pt.x*pt.x+pt.y*pt.y > 0.25)
+	  discard;
+	gl_FragColor = uFragColor;
+}
 `
 
 const blurShader = `
@@ -360,26 +348,6 @@ void main() {
   gl_FragColor = colorSum / 9.0;
 }
 `
-const edgeShader = `
-precision mediump float;
-uniform sampler2D u_image;
-uniform vec2 u_textureSize;
-varying vec2 v_texCoord;
-void main() {
-	vec2 onePixel = vec2(1,1) / u_textureSize;
-	vec4 col = texture2D(u_image, v_texCoord);
-	if (col.a < 0.5) {
-		float a =
-			texture2D(u_image, v_texCoord + onePixel * vec2(0.5, 1)).a;
-		if (a > 0.6)
-			col = vec4(1.0,0.4,0.4,a*0.3);
-		else 
-			col = vec4(0.0);
-	}
-	gl_FragColor = col;
-
-}
-`
 
 const thresholdShader = `
 precision mediump float;
@@ -392,9 +360,9 @@ void main() {
 	vec4 col = texture2D(u_image,v_texCoord);
 	if (col.a < 0.4) discard;
 	if (col.a < 0.8 && col.a > 0.72) {
-		a = texture2D(u_image, v_texCoord + onePixel * vec2(-1, -1)).a;
+		a = texture2D(u_image, v_texCoord + onePixel * vec2(-1, 1)).a;
 		if (a < col.a ) {
-			col = vec4(1.0,0.4 ,0.4, col.a);
+			col += 0.4;
 		}
 	} 
 	gl_FragColor = vec4(col.rgb,1.0);
@@ -406,7 +374,7 @@ attribute vec2 a_position;
 attribute vec2 a_texCoord;
 varying vec2 v_texCoord;
 void main() {
-   gl_Position = vec4((a_position * 2.0 - 1.0) * vec2(1,-1), 0, 1);
+   gl_Position = vec4((a_position * 2.0 - 1.0), 0, 1);
    v_texCoord = a_texCoord;
  }
 `
@@ -457,6 +425,8 @@ func (q *QuadFX) Render(gl js.Value) {
 	gl.Call("uniform2f", q.uTextureSize, width/resDiv, height/resDiv)
 
 	gl.Call("drawArrays", gl.Get("TRIANGLES"), 0 /*offset*/, 6 /*count*/)
+	gl.Call("disableVertexAttribArray", q.aPosition)
+	gl.Call("disableVertexAttribArray", q.aTexCoord)
 
 }
 
