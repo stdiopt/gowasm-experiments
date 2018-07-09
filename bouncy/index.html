@@ -1,5 +1,6 @@
 <html>
 	<head>
+		<title>go webassembly - bouncy</title>
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js"></script>
@@ -27,13 +28,14 @@
 				let El = document.getElementById(id)
 				let valEl = document.getElementById(idValue)
 				El.addEventListener("input", function() { valEl.innerHTML = El.value })
+				valEl.innerHTML = El.value
 			}
 		</script>
 	<style>
 body,pre { margin:0;padding:0; }
-.control-group { 
-	display:flex; 
-	align-items:center; 
+.control-group {
+	display:flex;
+	align-items:center;
 	justify-content: flex-start;
 }
 .control-group label { flex:0; flex-basis: 100px; }

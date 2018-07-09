@@ -1,5 +1,5 @@
 //Wasming
-// compile: GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
+// compile: GOOS=js GOARCH=wasm go1.11beta1 build -o main.wasm ./main.go
 package main
 
 import (
@@ -32,17 +32,16 @@ func main() {
 
 	done := make(chan struct{}, 0)
 
-	// Handle mouse
-	doc.Call("addEventListener", "mousemove", js.NewCallback(func(args []js.Value) {
+	dt := DotThing{speed: 160}
+
+	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
 		e := args[0]
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
-	}))
+	})
+	defer mouseMoveEvt.Close()
 
-	dt := DotThing{speed: 160}
-
-	// Event Handlers for DotThing
-	doc.Call("getElementById", "count").Call("addEventListener", "change", js.NewCallback(func(args []js.Value) {
+	countChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
 		if err != nil {
@@ -50,8 +49,10 @@ func main() {
 			return
 		}
 		dt.SetNDots(intVal)
-	}))
-	doc.Call("getElementById", "speed").Call("addEventListener", "input", js.NewCallback(func(args []js.Value) {
+	})
+	defer countChangeEvt.Close()
+
+	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
@@ -59,17 +60,30 @@ func main() {
 			return
 		}
 		dt.speed = fval
-	}))
+	})
+	defer speedInputEvt.Close()
+
+	// Handle mouse
+	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
+	doc.Call("getElementById", "count").Call("addEventListener", "change", countChangeEvt)
+	doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
 
 	dt.SetNDots(100)
 	dt.lines = false
 	var renderFrame js.Callback
 	var tmark float64
+	var markCount = 0
+	var tdiffSum float64
 
 	renderFrame = js.NewCallback(func(args []js.Value) {
 		now := args[0].Float()
 		tdiff := now - tmark
-		doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000/tdiff))
+		tdiffSum += now - tmark
+		markCount++
+		if markCount > 10 {
+			doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000/(tdiffSum/float64(markCount))))
+			tdiffSum, markCount = 0, 0
+		}
 		tmark = now
 
 		// Pool window size to handle resize
@@ -77,13 +91,14 @@ func main() {
 		curBodyH := doc.Get("body").Get("clientHeight").Float()
 		if curBodyW != width || curBodyH != height {
 			width, height = curBodyW, curBodyH
-			canvasEl.Call("setAttribute", "width", width)
-			canvasEl.Call("setAttribute", "height", height)
+			canvasEl.Set("width", width)
+			canvasEl.Set("height", height)
 		}
 		dt.Update(tdiff / 1000)
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})
+	defer renderFrame.Close()
 
 	// Start running
 	js.Global().Call("requestAnimationFrame", renderFrame)

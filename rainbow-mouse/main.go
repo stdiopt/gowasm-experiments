@@ -2,11 +2,15 @@
 package main
 
 import (
-	"log"
 	"math"
 	"syscall/js"
 
 	"github.com/lucasb-eyer/go-colorful"
+)
+
+var (
+	mousePos [2]float64
+	ctx      js.Value
 )
 
 func main() {
@@ -16,30 +20,23 @@ func main() {
 
 	bodyW := doc.Get("body").Get("clientWidth").Float()
 	bodyH := doc.Get("body").Get("clientHeight").Float()
-
-	canvasEl.Call("setAttribute", "width", bodyW)
-	canvasEl.Call("setAttribute", "height", bodyH)
-
-	if canvasEl == js.Undefined() {
-		log.Println("Canvas is undefined")
-		return
-	}
-
-	ctx := canvasEl.Call("getContext", "2d")
-
-	colorRot := float64(0)
-	curPos := []float64{100, 75}
-	targetPos := []float64{100, 100}
+	canvasEl.Set("width", bodyW)
+	canvasEl.Set("height", bodyH)
+	ctx = canvasEl.Call("getContext", "2d")
 
 	done := make(chan struct{}, 0)
 
-	mouseEvent := js.NewCallback(func(args []js.Value) {
-		e := args[0]
-		targetPos[0] = e.Get("clientX").Float() - canvasEl.Get("offsetLeft").Float()
-		targetPos[1] = e.Get("clientY").Float() - canvasEl.Get("offsetTop").Float()
-	})
+	colorRot := float64(0)
+	curPos := []float64{100, 75}
 
-	doc.Call("addEventListener", "mousemove", mouseEvent)
+	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
+		e := args[0]
+		mousePos[0] = e.Get("clientX").Float()
+		mousePos[1] = e.Get("clientY").Float()
+	})
+	defer mouseMoveEvt.Close()
+
+	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
 
 	var renderFrame js.Callback
 	renderFrame = js.NewCallback(func(args []js.Value) {
@@ -48,12 +45,11 @@ func main() {
 		curBodyH := doc.Get("body").Get("clientHeight").Float()
 		if curBodyW != bodyW || curBodyH != bodyH {
 			bodyW, bodyH = curBodyW, curBodyH
-
-			canvasEl.Call("setAttribute", "width", bodyW)
-			canvasEl.Call("setAttribute", "height", bodyH)
+			canvasEl.Set("width", bodyW)
+			canvasEl.Set("height", bodyH)
 		}
-		moveX := (targetPos[0] - curPos[0]) * 0.02
-		moveY := (targetPos[1] - curPos[1]) * 0.02
+		moveX := (mousePos[0] - curPos[0]) * 0.02
+		moveY := (mousePos[1] - curPos[1]) * 0.02
 
 		curPos[0] += moveX
 		curPos[1] += moveY
@@ -66,6 +62,7 @@ func main() {
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})
+	defer renderFrame.Close()
 
 	js.Global().Call("requestAnimationFrame", renderFrame)
 

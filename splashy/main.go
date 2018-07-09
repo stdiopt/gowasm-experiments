@@ -1,5 +1,6 @@
+// Drag mouse on canvas
 //Wasming
-// compile: GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
+// compile: GOOS=js GOARCH=wasm go-frommaster build -o main.wasm ./main.go
 package main
 
 import (
@@ -20,7 +21,7 @@ var (
 	simSpeed   = 1.0
 	worldScale = 0.0125 // 1/8
 	resDiv     = 8
-	maxBodies  = 150
+	maxBodies  = 100
 )
 
 func main() {
@@ -47,8 +48,8 @@ func main() {
 
 	thing := Thing{}
 	mouseDown := false
-	// Handle mouse
-	doc.Call("addEventListener", "mousedown", js.NewCallback(func(args []js.Value) {
+
+	mouseDownEvt := js.NewCallback(func(args []js.Value) {
 		mouseDown = true
 		evt := args[0]
 		if evt.Get("target") != canvasEl {
@@ -57,13 +58,14 @@ func main() {
 		mx := evt.Get("clientX").Float() * worldScale
 		my := evt.Get("clientY").Float() * worldScale
 		thing.AddCircle(mx, my)
+	})
+	defer mouseDownEvt.Release() // go1.11Beta1 is Close() latest is Release()
 
-	}))
-	doc.Call("addEventListener", "mouseup", js.NewCallback(func(args []js.Value) {
+	mouseUpEvt := js.NewCallback(func(args []js.Value) {
 		mouseDown = false
-	}))
-
-	doc.Call("addEventListener", "mousemove", js.NewCallback(func(args []js.Value) {
+	})
+	defer mouseUpEvt.Release()
+	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
 		if !mouseDown {
 			return
 		}
@@ -74,11 +76,9 @@ func main() {
 		mx := evt.Get("clientX").Float() * worldScale
 		my := evt.Get("clientY").Float() * worldScale
 		thing.AddCircle(mx, my)
-
-		// Close at some point create an object and set to nil
-	}))
-	// Speed control input
-	doc.Call("getElementById", "speed").Call("addEventListener", "input", js.NewCallback(func(args []js.Value) {
+	})
+	defer mouseMoveEvt.Release()
+	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
@@ -86,7 +86,13 @@ func main() {
 			return
 		}
 		simSpeed = fval
-	}))
+	})
+	defer speedInputEvt.Release()
+	// Handle events
+	doc.Call("addEventListener", "mousedown", mouseDownEvt)
+	doc.Call("addEventListener", "mouseup", mouseUpEvt)
+	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
+	doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
 
 	err := thing.Init(gl)
 	if err != nil {
@@ -116,6 +122,7 @@ func main() {
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})
+	defer renderFrame.Release()
 
 	// Start running
 	js.Global().Call("requestAnimationFrame", renderFrame)
@@ -138,6 +145,7 @@ type Thing struct {
 	rt         [2]js.Value // framebuffer(render target)
 
 	rdotBuf []float32
+	taBuf   js.TypedArray
 	world   box2d.B2World
 }
 
@@ -209,6 +217,7 @@ func (t *Thing) Init(gl js.Value) error {
 	}
 
 	t.rdotBuf = make([]float32, (maxBodies+1)*3)
+	t.taBuf = js.TypedArrayOf(t.rdotBuf)
 
 	return nil
 }
@@ -246,9 +255,9 @@ func (t *Thing) Render(gl js.Value, dtTime float64) {
 	gl.Call("useProgram", t.prog)
 	gl.Call("bindBuffer", gl.Get("ARRAY_BUFFER"), t.dotBuf)
 
-	ta := js.TypedArrayOf(t.rdotBuf)
-	gl.Call("bufferData", gl.Get("ARRAY_BUFFER"), ta, gl.Get("STATIC_DRAW")) // upload to gpu
-	ta.Release()
+	//ta := js.TypedArrayOf(t.rdotBuf)
+	gl.Call("bufferData", gl.Get("ARRAY_BUFFER"), t.taBuf, gl.Get("STATIC_DRAW")) // upload to gpu
+	//ta.Release()
 	gl.Call("enableVertexAttribArray", t.aPosition)
 	gl.Call("vertexAttribPointer", t.aPosition, 3, gl.Get("FLOAT"), false, 0, 0)
 	gl.Call("uniform4f", t.uFragColor, 1.0, 0.0, 0.0, 1.0)
@@ -373,6 +382,8 @@ type QuadFX struct {
 	uTextureSize js.Value
 
 	quadBuf js.Value
+
+	vertexData js.TypedArray
 }
 
 func (q *QuadFX) Init(gl js.Value, frag string) error {
@@ -381,6 +392,10 @@ func (q *QuadFX) Init(gl js.Value, frag string) error {
 	if err != nil {
 		return err
 	}
+	q.vertexData = js.TypedArrayOf([]float32{
+		0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
+		0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+	})
 
 	q.aPosition = gl.Call("getAttribLocation", q.prog, "a_position")
 	q.aTexCoord = gl.Call("getAttribLocation", q.prog, "a_texCoord")
@@ -389,10 +404,7 @@ func (q *QuadFX) Init(gl js.Value, frag string) error {
 	q.quadBuf = gl.Call("createBuffer")
 	// texCoord/posCoord
 	gl.Call("bindBuffer", gl.Get("ARRAY_BUFFER"), q.quadBuf)
-	gl.Call("bufferData", gl.Get("ARRAY_BUFFER"), js.TypedArrayOf([]float32{
-		0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
-		0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
-	}), gl.Get("STATIC_DRAW"))
+	gl.Call("bufferData", gl.Get("ARRAY_BUFFER"), q.vertexData, gl.Get("STATIC_DRAW"))
 	return nil
 
 }
@@ -410,6 +422,11 @@ func (q *QuadFX) Render(gl js.Value) {
 
 	gl.Call("drawArrays", gl.Get("TRIANGLES"), 0 /*offset*/, 6 /*count*/)
 
+}
+
+func (q *QuadFX) Release() {
+	q.vertexData.Release()
+	// TODO: gl release
 }
 
 // Helper funcs

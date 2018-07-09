@@ -4,7 +4,7 @@
 // - Esc cancel polygon
 
 //Wasming
-// compile: GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
+// compile: GOOS=js GOARCH=wasm go1.11beta1 build -o main.wasm ./main.go
 package main
 
 import (
@@ -44,14 +44,14 @@ func main() {
 	world := box2d.MakeB2World(box2d.B2Vec2{X: 0, Y: 9.8})
 	var verts []box2d.B2Vec2
 
-	doc.Call("addEventListener", "keyup", js.NewCallback(func(args []js.Value) {
+	keyUpEvt := js.NewCallback(func(args []js.Value) {
 		e := args[0]
 		if e.Get("which").Int() == 27 {
 			verts = nil
 		}
-	}))
-	// Handle mouse
-	doc.Call("addEventListener", "mousedown", js.NewCallback(func(args []js.Value) {
+	})
+	defer keyUpEvt.Close()
+	mouseDownEvt := js.NewCallback(func(args []js.Value) {
 		defer func() {
 			// Recovering from possible box2d panic
 			if r := recover(); r != nil {
@@ -67,79 +67,80 @@ func main() {
 		my := e.Get("clientY").Float() * worldScale
 		// Start shape
 		if verts == nil {
-			verts = []box2d.B2Vec2{}
-		} else {
-			dx := mx - verts[0].X
-			dy := my - verts[0].Y
-			d := math.Sqrt(dx*dx + dy*dy)
-			///////
-			// if clicked on the single spot we create a ball
-			if len(verts) == 1 && d < 10*worldScale {
-				obj1 := world.CreateBody(&box2d.B2BodyDef{
-					Type:         box2d.B2BodyType.B2_dynamicBody,
-					Position:     box2d.B2Vec2{X: mx, Y: my},
-					Awake:        true,
-					Active:       true,
-					GravityScale: 1.0,
-				})
-				shape := box2d.NewB2CircleShape()
-				shape.M_radius = (10 + rand.Float64()*10) * worldScale
-				ft := obj1.CreateFixture(shape, 1)
-				ft.M_friction = 0.3
-				ft.M_restitution = 0.7
-				verts = nil
-				return
-			}
-			if len(verts) > 2 && d < 10*worldScale || len(verts) == 8 {
+			verts = []box2d.B2Vec2{box2d.B2Vec2{mx, my}}
+			return
+		}
+		dx := mx - verts[0].X
+		dy := my - verts[0].Y
+		d := math.Sqrt(dx*dx + dy*dy)
+		///////
+		// if clicked on the single spot we create a ball
+		if len(verts) == 1 && d < 10*worldScale {
+			obj1 := world.CreateBody(&box2d.B2BodyDef{
+				Type:         box2d.B2BodyType.B2_dynamicBody,
+				Position:     box2d.B2Vec2{X: mx, Y: my},
+				Awake:        true,
+				Active:       true,
+				GravityScale: 1.0,
+			})
+			shape := box2d.NewB2CircleShape()
+			shape.M_radius = (10 + rand.Float64()*10) * worldScale
+			ft := obj1.CreateFixture(shape, 1)
+			ft.M_friction = 0.3
+			ft.M_restitution = 0.7
+			verts = nil
+			return
+		}
+		if len(verts) > 2 && d < 10*worldScale || len(verts) == 8 {
 
-				// Seems box2d panics when we create a polygon counterclockwise most
-				// likely due to normals and centroids calculations so basically we
-				// recover from that panic and invert the polygon and try again
-				var center *box2d.B2Vec2
-				func() {
-					defer func() { recover() }()
-					lc := box2d.ComputeCentroid(verts, len(verts))
-					center = &lc
-				}()
-				if center == nil {
-					//vert inversion
-					verts2 := make([]box2d.B2Vec2, len(verts))
-					for i := range verts {
-						verts2[len(verts)-1-i] = verts[i]
-					}
-					verts = verts2
-					// Retry
-					lc := box2d.ComputeCentroid(verts, len(verts))
-					center = &lc
-				}
-
-				// translate -center
+			// Seems box2d panics when we create a polygon counterclockwise most
+			// likely due to normals and centroids calculations so basically we
+			// recover from that panic and invert the polygon and try again
+			var center *box2d.B2Vec2
+			func() {
+				defer func() { recover() }()
+				lc := box2d.ComputeCentroid(verts, len(verts))
+				center = &lc
+			}()
+			if center == nil {
+				//vert inversion
+				verts2 := make([]box2d.B2Vec2, len(verts))
 				for i := range verts {
-					verts[i].X -= center.X
-					verts[i].Y -= center.Y
+					verts2[len(verts)-1-i] = verts[i]
 				}
-				shape := box2d.NewB2PolygonShape()
-				shape.Set(verts, len(verts))
-
-				obj := world.CreateBody(&box2d.B2BodyDef{
-					Type:         box2d.B2BodyType.B2_dynamicBody,
-					Position:     *center,
-					Awake:        true,
-					Active:       true,
-					GravityScale: 1.0,
-				})
-				fixture := obj.CreateFixture(shape, 10)
-				fixture.M_friction = 0.3
-				verts = nil
-				return
+				verts = verts2
+				// Retry
+				lc := box2d.ComputeCentroid(verts, len(verts))
+				center = &lc
 			}
+
+			// translate -center
+			for i := range verts {
+				verts[i].X -= center.X
+				verts[i].Y -= center.Y
+			}
+			shape := box2d.NewB2PolygonShape()
+			shape.Set(verts, len(verts))
+
+			obj := world.CreateBody(&box2d.B2BodyDef{
+				Type:         box2d.B2BodyType.B2_dynamicBody,
+				Position:     *center,
+				Awake:        true,
+				Active:       true,
+				GravityScale: 1.0,
+			})
+			fixture := obj.CreateFixture(shape, 10)
+			fixture.M_friction = 0.3
+			verts = nil
+			return
 		}
 		verts = append(verts, box2d.B2Vec2{mx, my})
 
 		// Close at some point create an object and set to nil
-	}))
-	// Speed control input
-	doc.Call("getElementById", "speed").Call("addEventListener", "input", js.NewCallback(func(args []js.Value) {
+	})
+	defer mouseDownEvt.Close()
+
+	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
@@ -147,7 +148,12 @@ func main() {
 			return
 		}
 		simSpeed = fval
-	}))
+	})
+	defer speedInputEvt.Close()
+
+	doc.Call("addEventListener", "keyup", keyUpEvt)
+	doc.Call("addEventListener", "mousedown", mouseDownEvt)
+	doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
 
 	// Floor
 	floor := world.CreateBody(&box2d.B2BodyDef{
@@ -252,7 +258,6 @@ func main() {
 			ctx.Call("restore")
 
 		}
-		//Draw world
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})

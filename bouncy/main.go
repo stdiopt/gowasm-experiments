@@ -1,5 +1,5 @@
 //Wasming
-// compile: GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
+// compile: GOOS=js GOARCH=wasm go1.11beta1 build -o main.wasm ./main.go
 package main
 
 import (
@@ -26,23 +26,22 @@ func main() {
 	canvasEl := doc.Call("getElementById", "mycanvas")
 	width = doc.Get("body").Get("clientWidth").Float()
 	height = doc.Get("body").Get("clientHeight").Float()
-	canvasEl.Call("setAttribute", "width", width)
-	canvasEl.Call("setAttribute", "height", height)
+	canvasEl.Set("width", width)
+	canvasEl.Set("height", height)
 	ctx = canvasEl.Call("getContext", "2d")
 
 	done := make(chan struct{}, 0)
 
-	// Handle mouse
-	doc.Call("addEventListener", "mousemove", js.NewCallback(func(args []js.Value) {
+	dt := DotThing{speed: 160}
+
+	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
 		e := args[0]
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
-	}))
-
-	dt := DotThing{speed: 160}
-
+	})
+	defer mouseMoveEvt.Close()
 	// Event Handlers for DotThing
-	doc.Call("getElementById", "count").Call("addEventListener", "change", js.NewCallback(func(args []js.Value) {
+	countChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
 		if err != nil {
@@ -50,8 +49,9 @@ func main() {
 			return
 		}
 		dt.SetNDots(intVal)
-	}))
-	doc.Call("getElementById", "speed").Call("addEventListener", "input", js.NewCallback(func(args []js.Value) {
+	})
+	defer countChangeEvt.Close()
+	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
@@ -59,11 +59,18 @@ func main() {
 			return
 		}
 		dt.speed = fval
-	}))
-	doc.Call("getElementById", "lines").Call("addEventListener", "change", js.NewCallback(func(args []js.Value) {
+	})
+	defer speedInputEvt.Close()
+	linesChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		dt.lines = evt.Get("target").Get("checked").Bool()
-	}))
+	})
+	defer linesChangeEvt.Close()
+
+	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
+	doc.Call("getElementById", "count").Call("addEventListener", "change", countChangeEvt)
+	doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
+	doc.Call("getElementById", "lines").Call("addEventListener", "change", linesChangeEvt)
 
 	dt.SetNDots(100)
 	dt.lines = false
@@ -88,13 +95,14 @@ func main() {
 		curBodyH := doc.Get("body").Get("clientHeight").Float()
 		if curBodyW != width || curBodyH != height {
 			width, height = curBodyW, curBodyH
-			canvasEl.Call("setAttribute", "width", width)
-			canvasEl.Call("setAttribute", "height", height)
+			canvasEl.Set("width", width)
+			canvasEl.Set("height", height)
 		}
 		dt.Update(tdiff / 1000)
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})
+	defer renderFrame.Close()
 
 	// Start running
 	js.Global().Call("requestAnimationFrame", renderFrame)
@@ -139,8 +147,7 @@ func (dt *DotThing) Update(dtTime float64) {
 			dot.pos[1] = height
 			dot.dir[1] *= -1
 		}
-		dir[0] = dot.dir[0]
-		dir[1] = dot.dir[1]
+		dir = dot.dir
 
 		ctx.Set("globalAlpha", 0.5)
 		ctx.Call("beginPath")
