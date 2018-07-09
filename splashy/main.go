@@ -143,7 +143,6 @@ type Thing struct {
 	dotBuf     js.Value
 	qBlur      *QuadFX
 	qThreshold *QuadFX
-	qEdge      *QuadFX
 
 	rtTex [2]js.Value // render target Texture
 	rt    [2]js.Value // framebuffer(render target)
@@ -178,11 +177,6 @@ func (t *Thing) Init(gl js.Value) error {
 	}
 	t.qThreshold = &QuadFX{}
 	err = t.qThreshold.Init(gl, thresholdShader)
-	if err != nil {
-		log.Fatal("Error:", err)
-	}
-	t.qEdge = &QuadFX{}
-	err = t.qEdge.Init(gl, edgeShader)
 	if err != nil {
 		log.Fatal("Error:", err)
 	}
@@ -291,15 +285,10 @@ func (t *Thing) Render(gl js.Value, dtTime float64) {
 	}
 
 	/// FX Threshold to Screen
-	gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), t.rt[1])
-	gl.Call("viewport", 0, 0, texWidth, texHeight)
-	gl.Call("bindTexture", gl.Get("TEXTURE_2D"), t.rtTex[0])
-	t.qThreshold.Render(gl)
-
 	gl.Call("bindFramebuffer", gl.Get("FRAMEBUFFER"), nil)
 	gl.Call("viewport", 0, 0, width, height)
 	gl.Call("bindTexture", gl.Get("TEXTURE_2D"), t.rtTex[0])
-	t.qEdge.Render(gl)
+	t.qThreshold.Render(gl)
 
 }
 
@@ -395,13 +384,21 @@ void main() {
 const thresholdShader = `
 precision mediump float;
 uniform sampler2D u_image;
+uniform vec2 u_textureSize;
 varying vec2 v_texCoord;
 void main() {
+	float a;
+	vec2 onePixel = vec2(1,1) / u_textureSize;
 	vec4 col = texture2D(u_image,v_texCoord);
-	if (col.r < 0.4) discard;
-	gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+	if (col.a < 0.4) discard;
+	if (col.a < 0.8 && col.a > 0.72) {
+		a = texture2D(u_image, v_texCoord + onePixel * vec2(-1, -1)).a;
+		if (a < col.a ) {
+			col = vec4(1.0,0.4 ,0.4, col.a);
+		}
+	} 
+	gl_FragColor = vec4(col.rgb,1.0);
 }
-
 `
 
 const vertQuad = `
