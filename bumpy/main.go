@@ -4,7 +4,7 @@
 // - Esc cancel polygon
 
 //Wasming
-// compile: GOOS=js GOARCH=wasm go1.11beta1 build -o main.wasm ./main.go
+// compile: GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
 package main
 
 import (

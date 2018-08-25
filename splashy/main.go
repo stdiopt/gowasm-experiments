@@ -1,6 +1,6 @@
 // Drag mouse on canvas
 //Wasming
-// compile: GOOS=js GOARCH=wasm go-frommaster build -o main.wasm ./main.go
+// compile: GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
 package main
 
 import (
