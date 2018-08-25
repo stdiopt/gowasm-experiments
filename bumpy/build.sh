@@ -1,3 +1,3 @@
 #!/bin/sh
 
-GOOS=js GOARCH=wasm go.master build -o main.wasm ./main.go
+GOOS=js GOARCH=wasm go build -o main.wasm ./main.go

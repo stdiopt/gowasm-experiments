@@ -39,7 +39,7 @@ func main() {
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
 	})
-	defer mouseMoveEvt.Close()
+	defer mouseMoveEvt.Release()
 	// Event Handlers for DotThing
 	countChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
@@ -50,7 +50,7 @@ func main() {
 		}
 		dt.SetNDots(intVal)
 	})
-	defer countChangeEvt.Close()
+	defer countChangeEvt.Release()
 	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
@@ -60,12 +60,12 @@ func main() {
 		}
 		dt.speed = fval
 	})
-	defer speedInputEvt.Close()
+	defer speedInputEvt.Release()
 	linesChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		dt.lines = evt.Get("target").Get("checked").Bool()
 	})
-	defer linesChangeEvt.Close()
+	defer linesChangeEvt.Release()
 
 	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
 	doc.Call("getElementById", "count").Call("addEventListener", "change", countChangeEvt)
@@ -102,7 +102,7 @@ func main() {
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})
-	defer renderFrame.Close()
+	defer renderFrame.Release()
 
 	// Start running
 	js.Global().Call("requestAnimationFrame", renderFrame)

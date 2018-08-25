@@ -5,20 +5,17 @@
 * [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
 * [bumpy](https://stdiopt.github.io/gowasm-experiments/bumpy)
 * [splashy](https://stdiopt.github.io/gowasm-experiments/splashy)
-  (requires latest go compiled from source >1.11beta1)
+  (requires go1.11)
 
-## getting go1.11 beta
+## getting go1.11
 
-Get one of those
-https://golang.org/dl/#go1.11beta1
-
-and in my case I just unpacked in `/usr/lib/go`
+install latest go 1.11 https://golang.org/dl/
 
 ## Building and running
 
 ```sh
 $ cd {proj} # sub folder (i.e. bouncy, rainbow-mouse)
-$ go get -v # possibly ignore the js error
+$ go get -v # ignore the js warning
 $ ./build.sh
 $ caddy
 ```

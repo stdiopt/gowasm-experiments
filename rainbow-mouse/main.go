@@ -34,7 +34,7 @@ func main() {
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
 	})
-	defer mouseMoveEvt.Close()
+	defer mouseMoveEvt.Release()
 
 	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
 
@@ -62,7 +62,7 @@ func main() {
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})
-	defer renderFrame.Close()
+	defer renderFrame.Release()
 
 	js.Global().Call("requestAnimationFrame", renderFrame)
 

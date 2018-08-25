@@ -39,7 +39,7 @@ func main() {
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
 	})
-	defer mouseMoveEvt.Close()
+	defer mouseMoveEvt.Release()
 
 	countChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
@@ -50,7 +50,7 @@ func main() {
 		}
 		dt.SetNDots(intVal)
 	})
-	defer countChangeEvt.Close()
+	defer countChangeEvt.Release()
 
 	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
@@ -61,7 +61,7 @@ func main() {
 		}
 		dt.speed = fval
 	})
-	defer speedInputEvt.Close()
+	defer speedInputEvt.Release()
 
 	// Handle mouse
 	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
@@ -98,7 +98,7 @@ func main() {
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
 	})
-	defer renderFrame.Close()
+	defer renderFrame.Release()
 
 	// Start running
 	js.Global().Call("requestAnimationFrame", renderFrame)
