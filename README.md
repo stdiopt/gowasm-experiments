@@ -5,7 +5,6 @@
 * [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
 * [bumpy](https://stdiopt.github.io/gowasm-experiments/bumpy)
 * [splashy](https://stdiopt.github.io/gowasm-experiments/splashy)
-  (requires go1.11)
 
 ## getting go1.11
 
