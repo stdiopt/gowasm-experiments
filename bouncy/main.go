@@ -32,7 +32,7 @@ func main() {
 
 	done := make(chan struct{}, 0)
 
-	dt := DotThing{speed: 160}
+	dt := DotThing{speed: 160, size: 6}
 
 	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
 		e := args[0]
@@ -40,7 +40,8 @@ func main() {
 		mousePos[1] = e.Get("clientY").Float()
 	})
 	defer mouseMoveEvt.Release()
-	// Event Handlers for DotThing
+
+	// Event handler for count range
 	countChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
@@ -51,6 +52,8 @@ func main() {
 		dt.SetNDots(intVal)
 	})
 	defer countChangeEvt.Release()
+
+	// Event handler for speed range
 	speedInputEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
@@ -61,16 +64,38 @@ func main() {
 		dt.speed = fval
 	})
 	defer speedInputEvt.Release()
-	linesChangeEvt := js.NewCallback(func(args []js.Value) {
+
+	// Event handler for size
+	sizeChangeEvt := js.NewCallback(func(args []js.Value) {
+		evt := args[0]
+		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
+		if err != nil {
+			log.Println("Invalid value")
+		}
+		dt.size = intVal
+	})
+	defer sizeChangeEvt.Release()
+
+	// Event handler for lines toggle
+	lineChangeEvt := js.NewCallback(func(args []js.Value) {
 		evt := args[0]
 		dt.lines = evt.Get("target").Get("checked").Bool()
 	})
-	defer linesChangeEvt.Release()
+	defer lineChangeEvt.Release()
+
+	// Event handler for dashed toggle
+	dashedChangeEvt := js.NewCallback(func(args []js.Value) {
+		evt := args[0]
+		dt.dashed = evt.Get("target").Get("checked").Bool()
+	})
+	defer dashedChangeEvt.Release()
 
 	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
 	doc.Call("getElementById", "count").Call("addEventListener", "change", countChangeEvt)
 	doc.Call("getElementById", "speed").Call("addEventListener", "input", speedInputEvt)
-	doc.Call("getElementById", "lines").Call("addEventListener", "change", linesChangeEvt)
+	doc.Call("getElementById", "size").Call("addEventListener", "input", sizeChangeEvt)
+	doc.Call("getElementById", "dashed").Call("addEventListener", "change", dashedChangeEvt)
+	doc.Call("getElementById", "lines").Call("addEventListener", "change", lineChangeEvt)
 
 	dt.SetNDots(100)
 	dt.lines = false
@@ -113,9 +138,11 @@ func main() {
 
 // DotThing manager
 type DotThing struct {
-	dots  []*Dot
-	lines bool
-	speed float64
+	dots   []*Dot
+	dashed bool
+	lines  bool
+	speed  float64
+	size   int
 }
 
 // Update updates the dot positions and draws
@@ -153,8 +180,13 @@ func (dt *DotThing) Update(dtTime float64) {
 		ctx.Call("beginPath")
 		ctx.Set("fillStyle", fmt.Sprintf("#%06x", dot.color))
 		ctx.Set("strokeStyle", fmt.Sprintf("#%06x", dot.color))
-		ctx.Set("lineWidth", dot.size)
-		ctx.Call("arc", dot.pos[0], dot.pos[1], dot.size, 0, 2*math.Pi)
+		// Dashed array ref: https://github.com/golang/go/blob/release-branch.go1.11/src/syscall/js/js.go#L98
+		ctx.Call("setLineDash", []interface{}{})
+		if dt.dashed {
+			ctx.Call("setLineDash", []interface{}{5, 10})
+		}
+		ctx.Set("lineWidth", dt.size)
+		ctx.Call("arc", dot.pos[0], dot.pos[1], dt.size, 0, 2*math.Pi)
 		ctx.Call("fill")
 
 		mdx := mousePos[0] - dot.pos[0]

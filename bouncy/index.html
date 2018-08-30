@@ -14,6 +14,7 @@
 			window.onload = function () {
 				linkRange('count','count-value')
 				linkRange('speed','speed-value')
+				linkRange('size','size-value')
 
 				// Go code background
 				fetch('main.go').then( res=> res.text()).then(res => {
@@ -71,7 +72,13 @@ body,pre { margin:0;padding:0; }
 				<label>Number of dots</label><input id="count" type="range" min="10" max="1000" value="100"> <span id="count-value"> 100</span>
 			</div>
 			<div class="control-group">
+				<label>Size</label><input id="size" type="range" min="1" max="10" value="6"> <span id="size-value">6</span>
+			</div>
+			<div class="control-group">
 				<label>Lines</label><input id="lines" type="checkbox">
+			</div>
+			<div class="control-group">
+				<label>dashed</label><input id="dashed" type="checkbox">
 			</div>
 		</div>
 	</body>
