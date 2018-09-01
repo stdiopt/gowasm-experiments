@@ -4,9 +4,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"image/color"
 	"math"
+	"strconv"
 	"syscall/js"
 
 	"github.com/stdiopt/gowasm-experiments/arty/painter"
@@ -40,7 +40,6 @@ type CanvasClient struct {
 	mousePos [2]float64
 	width    float64
 	height   float64
-	status   string
 }
 
 func NewCanvasClient(addr string) *CanvasClient {
@@ -78,7 +77,7 @@ func (c *CanvasClient) initCanvas() {
 	c.im = c.ctx.Call("createImageData", 1, 1)
 	c.painter.OnInit = func(m painter.InitOP) {
 		c.im = c.ctx.Call("createImageData", m.Width, m.Height)
-		c.status = "connected"
+		c.SetStatus("connected")
 	}
 }
 
@@ -98,10 +97,10 @@ func (c *CanvasClient) initFrameUpdate() {
 
 func (c *CanvasClient) initConnection() {
 	go func() {
-		c.status = "connecting..."
+		c.SetStatus("connecting...")
 		c.ws = js.Global().Get("WebSocket").New(c.addr)
 		onopen := js.NewCallback(func(args []js.Value) {
-			c.status = "receiving..."
+			c.SetStatus("receiving...")
 		})
 		defer onopen.Release()
 		onmessage := js.NewCallback(func(args []js.Value) {
@@ -116,8 +115,36 @@ func (c *CanvasClient) initConnection() {
 }
 func (c *CanvasClient) initEvents() {
 	go func() {
+
+		satEvt := js.NewCallback(func(args []js.Value) {
+			e := args[0]
+			v, _ := strconv.ParseFloat(e.Get("target").Get("value").String(), 64)
+			c.colorsat = v
+		})
+		defer satEvt.Release()
+		hueEvt := js.NewCallback(func(args []js.Value) {
+			e := args[0]
+			v, _ := strconv.ParseFloat(e.Get("target").Get("value").String(), 64)
+			c.colordeg = v
+		})
+		defer hueEvt.Release()
+		szEvt := js.NewCallback(func(args []js.Value) {
+			e := args[0]
+			v, _ := strconv.ParseFloat(e.Get("target").Get("value").String(), 64)
+			c.lineWidth = v
+		})
+		defer szEvt.Release()
+
+		c.doc.Call("getElementById", "sat").Call("addEventListener", "change", satEvt)
+		c.doc.Call("getElementById", "hue").Call("addEventListener", "change", hueEvt)
+		c.doc.Call("getElementById", "size").Call("addEventListener", "change", szEvt)
+
 		mouseDown := false
 		mouseDownEvt := js.NewCallback(func(args []js.Value) {
+			e := args[0]
+			if e.Get("target") != c.canvasEl {
+				return
+			}
 			mouseDown = true
 		})
 		defer mouseDownEvt.Release()
@@ -147,9 +174,7 @@ func (c *CanvasClient) initEvents() {
 			if err != nil {
 				return
 			}
-
 			c.ws.Call("send", string(buf))
-
 		})
 		keyEvt := js.NewCallback(func(args []js.Value) {
 			e := args[0]
@@ -182,24 +207,13 @@ func (c *CanvasClient) initEvents() {
 		<-c.done
 	}()
 }
+func (c *CanvasClient) SetStatus(txt string) {
+	c.doc.Call("getElementById", "status").Set("innerHTML", txt)
+}
 func (c *CanvasClient) draw() {
-
 	// golang buffer
 	ta := js.TypedArrayOf(c.painter.ImageData())
 	c.im.Get("data").Call("set", ta)
 	ta.Release()
 	c.ctx.Call("putImageData", c.im, 0, 0)
-
-	// bottom status
-	c.ctx.Set("fillStyle", colorful.Hsv(c.colordeg, c.colorsat, 1).Hex())
-	c.ctx.Call("fillRect", 0, c.height-30, c.width, c.height)
-	c.ctx.Set("font", "20px Georgia")
-	c.ctx.Set("fillStyle", "black")
-	c.ctx.Call("fillText",
-		fmt.Sprintf(
-			"%-40s Keys (1/2) sat(%.02f) | (3/4) hue(%.02f) (5/6) size(%.02f)",
-			c.status, c.colorsat, c.colordeg, c.lineWidth,
-		),
-		10, c.height-9,
-	)
 }

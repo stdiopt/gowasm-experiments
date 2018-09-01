@@ -7,15 +7,61 @@
 			WebAssembly.instantiateStreaming(fetch('main.wasm'),go.importObject).then( res=> {
 				go.run(res.instance)	
 			})
+			window.onload = function() {
+				linkRange('sat','sat-value')
+				linkRange('hue','hue-value')
+				linkRange('size','size-value')
+			}
 			
+			function linkRange(id, idValue) {
+				let El = document.getElementById(id)
+				let valEl = document.getElementById(idValue)
+				El.addEventListener("input", function() { valEl.innerHTML = El.value })
+				valEl.innerHTML = El.value
+			}
+	
 		</script>
 	<style>
 		body{background: #eee; overflow:auto}
 		body,pre { margin:0;padding:0; }
 		#mycanvas { background: #fff; /*width: 100%; height:100%;*/ top:0;left:0; }
+		.control-group {
+			display:flex;
+			align-items:center;
+			justify-content: flex-start;
+		}
+		.control-group label { flex:0; flex-basis: 100px; }
+		.control-group input { flex-grow:0; }
+		.control-group span { width:50px;}
+		.control {
+			position:fixed;
+			padding:20px;
+			background: rgba(0,0,0,0.4);
+			color:#FFF;
+			top:0;right:0;
+		}
+		#status {
+			font-size: 1.3em;
+		}
+
 	</style>
 	</head>
 	<body>
 		<canvas id="mycanvas" width="1920" height="1080"></canvas>
+		<div class="control">
+			<div id="status">
+				connecting...
+			</div>
+			<div class="control-group">
+				<label>saturation</label><input id="sat" type="range" step="0.1" min="0" max="1" value="0.5"> <span id="sat-value"> </span>
+			</div>
+			<div class="control-group">
+				<label>hue</label><input id="hue" type="range" min="0" max="360" value="100"> <span id="hue-value"></span>
+			</div>
+			<div class="control-group">
+				<label>size</label><input id="size" type="range" min="6" max="540" value="6"> <span id="size-value">6</span>
+			</div>
+		</div>
+
 	</body>
 </html>
