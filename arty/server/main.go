@@ -39,11 +39,6 @@ func (s *CanvasServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Println("upgrade err", err)
 		return
 	}
-	s.clients.Store(c, true)
-	defer func() {
-		c.Close()
-		s.clients.Delete(c)
-	}()
 
 	// send the current state (image buf)
 	initOp := painter.InitOP{
@@ -63,6 +58,12 @@ func (s *CanvasServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ncli := &Cli{conn: c}
+	s.clients.Store(ncli, true)
+	defer func() {
+		c.Close()
+		s.clients.Delete(ncli)
+	}()
 	for {
 		mt, message, err := c.ReadMessage()
 		if err != nil {
@@ -80,11 +81,11 @@ func (s *CanvasServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// Broadcast to other clients
 		s.clients.Range(func(key, value interface{}) bool {
-			cl := key.(*websocket.Conn)
-			if cl == c {
+			cl := key.(*Cli)
+			if cl == ncli {
 				return true
 			}
-			err := cl.WriteMessage(mt, message)
+			err := cl.send(mt, message)
 			if err != nil {
 				log.Println("Erro: sending to cli", err)
 			}
@@ -92,4 +93,16 @@ func (s *CanvasServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 
 	}
+}
+
+// Cli concurrent safe client
+type Cli struct {
+	sync.Mutex
+	conn *websocket.Conn
+}
+
+func (c *Cli) send(mt int, msg []byte) error {
+	c.Lock()
+	defer c.Unlock()
+	return c.conn.WriteMessage(mt, msg)
 }

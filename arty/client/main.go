@@ -15,7 +15,8 @@ import (
 
 func main() {
 
-	c := NewCanvasClient("wss:/arty.us.hexasoftware.com")
+	//c := NewCanvasClient("wss:/arty.us.hexasoftware.com")
+	c := NewCanvasClient("ws:/archvm:4444")
 	defer c.Close()
 
 	c.Start()
