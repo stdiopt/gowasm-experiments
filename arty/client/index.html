@@ -1,0 +1,21 @@
+<html>
+	<head>
+		<title>go webassembly - canvas</title>
+		<script src="wasm_exec.js"></script>
+		<script>
+			const go = new Go();
+			WebAssembly.instantiateStreaming(fetch('main.wasm'),go.importObject).then( res=> {
+				go.run(res.instance)	
+			})
+			
+		</script>
+	<style>
+		body{background: #eee; overflow:auto}
+		body,pre { margin:0;padding:0; }
+		#mycanvas { background: #fff; /*width: 100%; height:100%;*/ top:0;left:0; }
+	</style>
+	</head>
+	<body>
+		<canvas id="mycanvas" width="1920" height="1080"></canvas>
+	</body>
+</html>
