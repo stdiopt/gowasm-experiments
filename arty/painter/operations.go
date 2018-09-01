@@ -8,6 +8,7 @@ import (
 const (
 	OPInit = iota + 1
 	OPLine
+	OpClear
 )
 
 type OP struct {

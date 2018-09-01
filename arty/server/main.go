@@ -19,9 +19,7 @@ func main() {
 
 type CanvasServer struct {
 	painter *painter.BufPainter
-	// Commons clients etc?
 	clients sync.Map
-	//map[*websocket.Conn]struct{}
 }
 
 func NewCanvasServer(w, h int) *CanvasServer {

@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"image/color"
-	"math"
 	"strconv"
 	"syscall/js"
 
@@ -33,8 +32,7 @@ type CanvasClient struct {
 	ws       js.Value
 	im       js.Value
 
-	colordeg  float64
-	colorsat  float64
+	colorHex  string
 	lineWidth float64
 
 	mousePos [2]float64
@@ -50,7 +48,6 @@ func NewCanvasClient(addr string) *CanvasClient {
 		done:      done,
 		painter:   painter,
 		addr:      addr,
-		colorsat:  0.2,
 		lineWidth: 10,
 	}
 }
@@ -115,19 +112,10 @@ func (c *CanvasClient) initConnection() {
 }
 func (c *CanvasClient) initEvents() {
 	go func() {
-
-		satEvt := js.NewCallback(func(args []js.Value) {
+		colorEvt := js.NewCallback(func(args []js.Value) {
 			e := args[0]
-			v, _ := strconv.ParseFloat(e.Get("target").Get("value").String(), 64)
-			c.colorsat = v
+			c.colorHex = e.Get("target").Get("value").String()
 		})
-		defer satEvt.Release()
-		hueEvt := js.NewCallback(func(args []js.Value) {
-			e := args[0]
-			v, _ := strconv.ParseFloat(e.Get("target").Get("value").String(), 64)
-			c.colordeg = v
-		})
-		defer hueEvt.Release()
 		szEvt := js.NewCallback(func(args []js.Value) {
 			e := args[0]
 			v, _ := strconv.ParseFloat(e.Get("target").Get("value").String(), 64)
@@ -135,16 +123,21 @@ func (c *CanvasClient) initEvents() {
 		})
 		defer szEvt.Release()
 
-		c.doc.Call("getElementById", "sat").Call("addEventListener", "change", satEvt)
-		c.doc.Call("getElementById", "hue").Call("addEventListener", "change", hueEvt)
+		c.doc.Call("getElementById", "color").Call("addEventListener", "change", colorEvt)
 		c.doc.Call("getElementById", "size").Call("addEventListener", "change", szEvt)
 
 		mouseDown := false
 		mouseDownEvt := js.NewCallback(func(args []js.Value) {
 			e := args[0]
-			if e.Get("target") != c.canvasEl {
+			if e.Get("target") != c.canvasEl || e.Get("buttons").Float() != 1 {
 				return
 			}
+
+			if !e.Get("shiftKey").Bool() {
+				c.mousePos[0] = e.Get("pageX").Float()
+				c.mousePos[1] = e.Get("pageY").Float()
+			}
+			c.drawAtPointer(e)
 			mouseDown = true
 		})
 		defer mouseDownEvt.Release()
@@ -153,59 +146,39 @@ func (c *CanvasClient) initEvents() {
 		})
 		defer mouseUpEvt.Release()
 		mouseMoveEvt := js.NewCallback(func(args []js.Value) {
-			e := args[0]
-			lastPos := c.mousePos
-			c.mousePos[0] = e.Get("pageX").Float()
-			c.mousePos[1] = e.Get("pageY").Float()
 			if !mouseDown {
 				return
 			}
-
-			col := colorful.Hsv(c.colordeg, c.colorsat, 1)
-			op := painter.LineOP{
-				color.RGBA{uint8(col.R * 255), uint8(col.G * 255), uint8(col.B * 255), 255},
-				c.lineWidth,
-				lastPos[0], lastPos[1],
-				c.mousePos[0], c.mousePos[1],
-			}
-			c.painter.Line(op)
-
-			buf, err := json.Marshal(&op)
-			if err != nil {
-				return
-			}
-			c.ws.Call("send", string(buf))
+			c.drawAtPointer(args[0])
 		})
-		keyEvt := js.NewCallback(func(args []js.Value) {
-			e := args[0]
-			key := e.Get("key").String()
-			switch key {
-			case "1":
-				c.colorsat = math.Max(c.colorsat-0.1, 0)
-			case "2":
-				c.colorsat = math.Min(c.colorsat+0.1, 1)
-			case "3":
-				c.colordeg = math.Mod(c.colordeg-1, 360)
-			case "4":
-				c.colordeg = math.Mod(c.colordeg+1, 360)
-			case "5":
-				c.lineWidth = math.Max(c.lineWidth-1, 2)
-			case "6":
-				c.lineWidth = math.Min(c.lineWidth+1, 540)
-			}
-			if c.colordeg < 0 {
-				c.colordeg += 360
-			}
-
-		})
-		defer keyEvt.Release()
 		c.doc.Call("addEventListener", "mousemove", mouseMoveEvt)
 		c.doc.Call("addEventListener", "mousedown", mouseDownEvt)
 		c.doc.Call("addEventListener", "mouseup", mouseUpEvt)
-		c.doc.Call("addEventListener", "keydown", keyEvt)
 
 		<-c.done
 	}()
+}
+func (c *CanvasClient) drawAtPointer(e js.Value) {
+	lastPos := c.mousePos
+
+	c.mousePos[0] = e.Get("pageX").Float()
+	c.mousePos[1] = e.Get("pageY").Float()
+
+	col, _ := colorful.Hex(c.colorHex) // Ignore error
+	op := painter.LineOP{
+		color.RGBA{uint8(col.R * 255), uint8(col.G * 255), uint8(col.B * 255), 255},
+		c.lineWidth,
+		lastPos[0], lastPos[1],
+		c.mousePos[0], c.mousePos[1],
+	}
+	c.painter.Line(op)
+
+	buf, err := json.Marshal(&op)
+	if err != nil {
+		return
+	}
+	c.ws.Call("send", string(buf))
+
 }
 func (c *CanvasClient) SetStatus(txt string) {
 	c.doc.Call("getElementById", "status").Set("innerHTML", txt)

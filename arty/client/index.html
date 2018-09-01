@@ -8,11 +8,8 @@
 				go.run(res.instance)	
 			})
 			window.onload = function() {
-				linkRange('sat','sat-value')
-				linkRange('hue','hue-value')
 				linkRange('size','size-value')
 			}
-			
 			function linkRange(id, idValue) {
 				let El = document.getElementById(id)
 				let valEl = document.getElementById(idValue)
@@ -29,10 +26,18 @@
 			display:flex;
 			align-items:center;
 			justify-content: flex-start;
+			margin-top:10px;
 		}
-		.control-group label { flex:0; flex-basis: 100px; }
+		.control-group label { flex:0; flex-shrink:0; flex-basis: 50px; }
 		.control-group input { flex-grow:0; }
-		.control-group span { width:50px;}
+		.control-group input[type=color] { 
+			-webkit-appearance: none;
+			width:100%; 
+			border:none; 
+		}
+		input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+		input[type="color"]::-webkit-color-swatch { border: none; }
+		.control-group span { text-align:center; width:50px;}
 		.control {
 			position:fixed;
 			padding:20px;
@@ -53,10 +58,7 @@
 				connecting...
 			</div>
 			<div class="control-group">
-				<label>saturation</label><input id="sat" type="range" step="0.1" min="0" max="1" value="0.5"> <span id="sat-value"> </span>
-			</div>
-			<div class="control-group">
-				<label>hue</label><input id="hue" type="range" min="0" max="360" value="100"> <span id="hue-value"></span>
+				<label>color</label><input id="color" type="color">
 			</div>
 			<div class="control-group">
 				<label>size</label><input id="size" type="range" min="6" max="540" value="6"> <span id="size-value">6</span>
