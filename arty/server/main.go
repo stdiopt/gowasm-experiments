@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"image/color"
 	"log"
 	"net/http"
 	"sync"
@@ -14,7 +14,11 @@ import (
 func main() {
 	addr := ":4444"
 	log.Println("Listening at ", addr)
-	http.ListenAndServe(addr, NewCanvasServer(1920, 1080))
+	server, err := NewCanvasServer(1920, 1080)
+	if err != nil {
+		log.Fatal("error starting canvas server", err)
+	}
+	http.ListenAndServe(addr, server)
 }
 
 type CanvasServer struct {
@@ -22,10 +26,20 @@ type CanvasServer struct {
 	clients sync.Map
 }
 
-func NewCanvasServer(w, h int) *CanvasServer {
-	p := painter.New()
+func NewCanvasServer(w, h int) (*CanvasServer, error) {
+	p, err := painter.New()
+	if err != nil {
+		return nil, err
+	}
 	p.Init(painter.InitOP{Width: w, Height: h})
-	return &CanvasServer{p, sync.Map{}}
+
+	p.HandleOP(painter.TextOP{
+		Color: color.RGBA{R: 0, G: 0, B: 0, A: 255},
+		X:     10.0,
+		Y:     10.0,
+		Text:  "Hello world",
+	})
+	return &CanvasServer{p, sync.Map{}}, nil
 }
 
 var upgrader = websocket.Upgrader{
@@ -40,19 +54,11 @@ func (s *CanvasServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// send the current state (image buf)
-	initOp := painter.InitOP{
+	c.WriteJSON(painter.Message{painter.InitOP{
 		Width:  s.painter.Width(),
 		Height: s.painter.Height(),
 		Data:   s.painter.ImageData(),
-	}
-	buf, err := json.Marshal(initOp)
-	if err != nil {
-		log.Println("msg encoding error")
-		return
-	}
-
-	err = c.WriteMessage(websocket.TextMessage, buf)
+	}})
 	if err != nil {
 		log.Println("sending msg error")
 		return

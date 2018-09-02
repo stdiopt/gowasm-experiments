@@ -2,34 +2,70 @@ package painter
 
 import (
 	"encoding/json"
+	"errors"
 	"image/color"
 )
 
 const (
-	OPInit = iota + 1
-	OPLine
-	OpClear
+	opInit = iota + 1
+	opLine
+	opText
 )
 
-type OP struct {
-	OP      uint
-	Payload json.RawMessage
+// OP Wrapper
+type Message struct {
+	Payload interface{}
+}
+
+func (m *Message) UnmarshalJSON(raw []byte) error {
+	v := struct {
+		OP      uint
+		Payload json.RawMessage
+	}{}
+	err := json.Unmarshal(raw, &v)
+	if err != nil {
+		return err
+	}
+	switch v.OP {
+	case opInit:
+		payload := InitOP{}
+		err = json.Unmarshal(v.Payload, &payload)
+		m.Payload = payload
+	case opLine:
+		payload := LineOP{}
+		err = json.Unmarshal(v.Payload, &payload)
+		m.Payload = payload
+	case opText:
+		payload := TextOP{}
+		err = json.Unmarshal(v.Payload, &payload)
+		m.Payload = payload
+	default:
+		return errors.New("unknown operation")
+	}
+	return err
+}
+func (m Message) MarshalJSON() ([]byte, error) {
+	v := struct {
+		OP      uint
+		Payload interface{}
+	}{
+		Payload: m.Payload,
+	}
+	switch m.Payload.(type) {
+	case InitOP:
+		v.OP = opInit
+	case LineOP:
+		v.OP = opLine
+	case TextOP:
+		v.OP = opText
+	}
+	return json.Marshal(v)
 }
 
 // This ops will be marshalled with the wrapper struct
-
 type InitOP struct {
 	Width, Height int
 	Data          []byte
-}
-
-func (o InitOP) MarshalJSON() ([]byte, error) {
-	type alias InitOP // this will prevent recursion on marshal
-	payload, err := json.Marshal(alias(o))
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(OP{OPInit, payload})
 }
 
 type LineOP struct {
@@ -39,11 +75,9 @@ type LineOP struct {
 	X2, Y2 float64
 }
 
-func (o LineOP) MarshalJSON() ([]byte, error) {
-	type alias LineOP
-	payload, err := json.Marshal(alias(o))
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(OP{OPLine, payload})
+type TextOP struct {
+	Color color.RGBA
+	Size  float64
+	X, Y  float64
+	Text  string
 }

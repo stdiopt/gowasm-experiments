@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"image/color"
+	"log"
 	"strconv"
 	"syscall/js"
 
@@ -14,12 +15,16 @@ import (
 )
 
 func main() {
-
-	c := NewCanvasClient("wss:/arty.us.hexasoftware.com")
-	//c := NewCanvasClient("ws:/archvm:4444")
+	c, err := NewCanvasClient("wss:/arty.us.hexasoftware.com")
+	if err != nil {
+		log.Fatal("could not start", err)
+	}
 	defer c.Close()
-
 	c.Start()
+}
+
+type pos struct {
+	x, y float64
 }
 
 type CanvasClient struct {
@@ -36,28 +41,31 @@ type CanvasClient struct {
 	colorHex  string
 	lineWidth float64
 
-	mousePos [2]float64
-	width    float64
-	height   float64
+	textOff pos
+	lastPos pos
+	width   float64
+	height  float64
 }
 
-func NewCanvasClient(addr string) *CanvasClient {
+func NewCanvasClient(addr string) (*CanvasClient, error) {
 	done := make(chan struct{})
 
-	painter := painter.New()
+	painter, err := painter.New()
+	if err != nil {
+		return nil, err
+	}
 	return &CanvasClient{
 		done:      done,
 		painter:   painter,
 		addr:      addr,
 		lineWidth: 10,
-	}
+	}, nil
 }
 
 func (c *CanvasClient) Start() {
 	c.initCanvas()
 	c.initFrameUpdate()
 	c.initConnection()
-	c.initEvents()
 
 	<-c.done
 }
@@ -76,6 +84,7 @@ func (c *CanvasClient) initCanvas() {
 	c.painter.OnInit = func(m painter.InitOP) {
 		c.im = c.ctx.Call("createImageData", m.Width, m.Height)
 		c.SetStatus("connected")
+		c.initEvents()
 	}
 }
 
@@ -113,6 +122,7 @@ func (c *CanvasClient) initConnection() {
 }
 func (c *CanvasClient) initEvents() {
 	go func() {
+		// DOM events
 		colorEvt := js.NewCallback(func(args []js.Value) {
 			e := args[0]
 			c.colorHex = e.Get("target").Get("value").String()
@@ -127,54 +137,91 @@ func (c *CanvasClient) initEvents() {
 		c.doc.Call("getElementById", "color").Call("addEventListener", "change", colorEvt)
 		c.doc.Call("getElementById", "size").Call("addEventListener", "change", szEvt)
 
+		// Input events
 		mouseDown := false
 		mouseDownEvt := js.NewCallback(func(args []js.Value) {
 			e := args[0]
 			if e.Get("target") != c.canvasEl || e.Get("buttons").Float() != 1 {
 				return
 			}
-
+			mouseDown = true
 			if !e.Get("shiftKey").Bool() {
-				c.mousePos[0] = e.Get("pageX").Float()
-				c.mousePos[1] = e.Get("pageY").Float()
+				c.lastPos.x = e.Get("pageX").Float()
+				c.lastPos.y = e.Get("pageY").Float()
+				c.textOff = pos{} // reset
+				return
 			}
 			c.drawAtPointer(e)
-			mouseDown = true
 		})
 		defer mouseDownEvt.Release()
+
 		mouseUpEvt := js.NewCallback(func(args []js.Value) {
 			mouseDown = false
 		})
 		defer mouseUpEvt.Release()
+
 		mouseMoveEvt := js.NewCallback(func(args []js.Value) {
 			if !mouseDown {
 				return
 			}
 			c.drawAtPointer(args[0])
 		})
+
+		keyPressEvt := js.NewCallback(func(args []js.Value) {
+			e := args[0]
+			e.Call("preventDefault")
+			e.Call("stopPropagation")
+
+			key := e.Get("key").String()
+			if key == "Enter" {
+				c.textOff.x = 0
+				c.textOff.y += (c.lineWidth + 10)
+			}
+			if len(key) != 1 {
+				return
+			}
+			col, _ := colorful.Hex(c.colorHex) // Ignore error
+			op := painter.TextOP{
+				color.RGBA{uint8(col.R * 255), uint8(col.G * 255), uint8(col.B * 255), 255},
+				c.lineWidth + 6,
+				c.lastPos.x + c.textOff.x, c.lastPos.y + c.textOff.y,
+				key,
+			}
+			c.textOff.x += (c.lineWidth + 10) * 0.6
+
+			c.painter.HandleOP(op)
+			buf, err := json.Marshal(painter.Message{op})
+			if err != nil {
+				return
+			}
+			c.ws.Call("send", string(buf))
+
+		})
+		defer keyPressEvt.Release()
 		c.doc.Call("addEventListener", "mousemove", mouseMoveEvt)
 		c.doc.Call("addEventListener", "mousedown", mouseDownEvt)
 		c.doc.Call("addEventListener", "mouseup", mouseUpEvt)
+		c.doc.Call("addEventListener", "keypress", keyPressEvt)
 
 		<-c.done
 	}()
 }
 func (c *CanvasClient) drawAtPointer(e js.Value) {
-	lastPos := c.mousePos
+	lastPos := c.lastPos
 
-	c.mousePos[0] = e.Get("pageX").Float()
-	c.mousePos[1] = e.Get("pageY").Float()
+	c.lastPos.x = e.Get("pageX").Float()
+	c.lastPos.y = e.Get("pageY").Float()
 
 	col, _ := colorful.Hex(c.colorHex) // Ignore error
 	op := painter.LineOP{
 		color.RGBA{uint8(col.R * 255), uint8(col.G * 255), uint8(col.B * 255), 255},
 		c.lineWidth,
-		lastPos[0], lastPos[1],
-		c.mousePos[0], c.mousePos[1],
+		lastPos.x, lastPos.y,
+		c.lastPos.x, c.lastPos.y,
 	}
-	c.painter.Line(op)
+	c.painter.HandleOP(op)
 
-	buf, err := json.Marshal(&op)
+	buf, err := json.Marshal(painter.Message{op})
 	if err != nil {
 		return
 	}
