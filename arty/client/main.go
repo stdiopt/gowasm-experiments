@@ -16,6 +16,7 @@ import (
 
 func main() {
 	c, err := NewCanvasClient("wss:/arty.us.hexasoftware.com")
+
 	if err != nil {
 		log.Fatal("could not start", err)
 	}
@@ -139,8 +140,7 @@ func (c *CanvasClient) initEvents() {
 
 		// Input events
 		mouseDown := false
-		mouseDownEvt := js.NewCallback(func(args []js.Value) {
-			e := args[0]
+		mouseDownEvt := js.NewEventCallback(0, func(e js.Value) {
 			if e.Get("target") != c.canvasEl || e.Get("buttons").Float() != 1 {
 				return
 			}
@@ -167,11 +167,7 @@ func (c *CanvasClient) initEvents() {
 			c.drawAtPointer(args[0])
 		})
 
-		keyPressEvt := js.NewCallback(func(args []js.Value) {
-			e := args[0]
-			e.Call("preventDefault")
-			e.Call("stopPropagation")
-
+		keyPressEvt := js.NewEventCallback(js.PreventDefault, func(e js.Value) {
 			key := e.Get("key").String()
 			if key == "Enter" {
 				c.textOff.x = 0
