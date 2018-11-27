@@ -5,7 +5,7 @@
 * [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
 * [bumpy](https://stdiopt.github.io/gowasm-experiments/bumpy)
 * [splashy](https://stdiopt.github.io/gowasm-experiments/splashy)
-* [arty](https://stdiopt.github.io/gowasm-experiments/arty/client) (**NEW**)
+* [arty](https://stdiopt.github.io/gowasm-experiments/arty/client)
 
 ## getting go1.11
 
