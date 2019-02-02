@@ -22,7 +22,3 @@ $ caddy
 
 Serve with caddy or anything else that is able to set the mimetype
 'application/wasm' for .wasm files
-
-## Others samples/experiments:
-
-https://github.com/justinclift/wasmGraph1
