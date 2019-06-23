@@ -10,12 +10,10 @@ import (
 )
 
 const (
-	nPoints   = 20
-	hexE      = 30
-	lifeScale = 0.01
-	speed     = 2.5
-	alpha     = 0.991
-	deg2rad   = 0.017453292 // pi/180
+	nPoints = 20
+	hexE    = 30
+	speed   = 2.5
+	deg2rad = 0.017453292 // pi/180
 )
 
 var (
