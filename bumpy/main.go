@@ -9,7 +9,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"strconv"
@@ -44,14 +43,15 @@ func main() {
 	world := box2d.MakeB2World(box2d.B2Vec2{X: 0, Y: 9.8})
 	var verts []box2d.B2Vec2
 
-	keyUpEvt := js.NewCallback(func(args []js.Value) {
+	keyUpEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		e := args[0]
 		if e.Get("which").Int() == 27 {
 			verts = nil
 		}
+		return nil
 	})
 	defer keyUpEvt.Release()
-	mouseDownEvt := js.NewCallback(func(args []js.Value) {
+	mouseDownEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		defer func() {
 			// Recovering from possible box2d panic
 			if r := recover(); r != nil {
@@ -61,14 +61,14 @@ func main() {
 
 		e := args[0]
 		if e.Get("target") != canvasEl {
-			return
+			return nil
 		}
 		mx := e.Get("clientX").Float() * worldScale
 		my := e.Get("clientY").Float() * worldScale
 		// Start shape
 		if verts == nil {
 			verts = []box2d.B2Vec2{box2d.B2Vec2{mx, my}}
-			return
+			return nil
 		}
 		dx := mx - verts[0].X
 		dy := my - verts[0].Y
@@ -89,7 +89,7 @@ func main() {
 			ft.M_friction = 0.3
 			ft.M_restitution = 0.7
 			verts = nil
-			return
+			return nil
 		}
 		if len(verts) > 2 && d < 10*worldScale || len(verts) == 8 {
 
@@ -132,20 +132,22 @@ func main() {
 			fixture := obj.CreateFixture(shape, 10)
 			fixture.M_friction = 0.3
 			verts = nil
-			return
+			return nil
 		}
 		verts = append(verts, box2d.B2Vec2{mx, my})
+		return nil
 	})
 	defer mouseDownEvt.Release()
 
-	speedInputEvt := js.NewCallback(func(args []js.Value) {
+	speedInputEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
-			log.Println("Invalid value", err)
-			return
+			println("Invalid value", err)
+			return nil
 		}
 		simSpeed = fval
+		return nil
 	})
 	defer speedInputEvt.Release()
 
@@ -181,7 +183,7 @@ func main() {
 	}
 
 	// Draw things
-	var renderFrame js.Callback
+	var renderFrame js.Func
 	var tmark float64
 
 	// overall style
@@ -189,7 +191,7 @@ func main() {
 	ctx.Set("strokeStyle", "rgba(100,150,100,1)")
 	ctx.Set("lineWidth", 2*worldScale)
 
-	renderFrame = js.NewCallback(func(args []js.Value) {
+	renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		now := args[0].Float()
 		tdiff := now - tmark
 		doc.Call("getElementById", "fps").Set("innerHTML", fmt.Sprintf("FPS: %.01f", 1000/tdiff))
@@ -254,10 +256,9 @@ func main() {
 				ctx.Call("stroke")
 			}
 			ctx.Call("restore")
-
 		}
-
 		js.Global().Call("requestAnimationFrame", renderFrame)
+		return nil
 	})
 
 	// Start running

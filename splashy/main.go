@@ -51,45 +51,49 @@ func main() {
 	thing := Thing{}
 	mouseDown := false
 
-	mouseDownEvt := js.NewCallback(func(args []js.Value) {
+	mouseDownEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		mouseDown = true
 		evt := args[0]
 		if evt.Get("target") != canvasEl {
-			return
+			return nil
 		}
 		mx := evt.Get("clientX").Float() * worldScale
 		my := evt.Get("clientY").Float() * worldScale
 		thing.AddCircle(mx, my)
+		return nil
 	})
-	defer mouseDownEvt.Release() // go1.11Beta1 is Close() latest is Release()
+	defer mouseDownEvt.Release()
 
-	mouseUpEvt := js.NewCallback(func(args []js.Value) {
+	mouseUpEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		mouseDown = false
+		return nil
 	})
 	defer mouseUpEvt.Release()
 
-	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
+	mouseMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if !mouseDown {
-			return
+			return nil
 		}
 		evt := args[0]
 		if evt.Get("target") != canvasEl {
-			return
+			return nil
 		}
 		mx := evt.Get("clientX").Float() * worldScale
 		my := evt.Get("clientY").Float() * worldScale
 		thing.AddCircle(mx, my)
+		return nil
 	})
 	defer mouseMoveEvt.Release()
 
-	speedInputEvt := js.NewCallback(func(args []js.Value) {
+	speedInputEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
-			log.Println("Invalid value", err)
-			return
+			println("Invalid value", err)
+			return nil
 		}
 		simSpeed = fval
+		return nil
 	})
 	defer speedInputEvt.Release()
 	// Events
@@ -100,18 +104,17 @@ func main() {
 
 	err := thing.Init(gl)
 	if err != nil {
-		log.Println("Err Initializing thing:", err)
+		println("Err Initializing thing:", err)
 		return
 	}
 
 	// Draw things
-	var renderFrame js.Callback
+	var renderFrame js.Func
 	var tmark float64
 	var markCount = 0
 	var tdiffSum float64
 
-	renderFrame = js.NewCallback(func(args []js.Value) {
-		// Update the DOM less frequently TODO: func on this
+	renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		now := args[0].Float()
 		tdiff := now - tmark
 		tdiffSum += tdiff
@@ -125,6 +128,7 @@ func main() {
 		thing.Render(gl, tdiff/1000)
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
+		return nil
 	})
 	defer renderFrame.Release()
 

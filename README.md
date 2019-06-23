@@ -1,15 +1,12 @@
 # go 1.11 webassembly experiments
 
-* [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
-* [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
-* [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
-* [bumpy](https://stdiopt.github.io/gowasm-experiments/bumpy)
-* [splashy](https://stdiopt.github.io/gowasm-experiments/splashy)
-* [arty](https://stdiopt.github.io/gowasm-experiments/arty/client)
-
-## getting go1.11
-
-install latest go 1.11 https://golang.org/dl/
+- [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
+- [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
+- [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
+- [bumpy](https://stdiopt.github.io/gowasm-experiments/bumpy)
+- [splashy](https://stdiopt.github.io/gowasm-experiments/splashy)
+- [arty](https://stdiopt.github.io/gowasm-experiments/arty/client)
+- [hexy](https://stdiopt.github.io/gowasm-experiments/hexy) **NEW**
 
 ## Building and running
 
@@ -17,7 +14,7 @@ install latest go 1.11 https://golang.org/dl/
 $ cd {proj} # sub folder (i.e. bouncy, rainbow-mouse)
 $ go get -v # ignore the js warning
 $ ./build.sh
-$ caddy
+$ go run ../serve.go
 ```
 
 Serve with caddy or anything else that is able to set the mimetype

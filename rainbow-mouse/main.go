@@ -30,17 +30,18 @@ func main() {
 	colorRot := float64(0)
 	curPos := []float64{100, 75}
 
-	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
+	mouseMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		e := args[0]
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
+		return nil
 	})
 	defer mouseMoveEvt.Release()
 
 	doc.Call("addEventListener", "mousemove", mouseMoveEvt)
 
-	var renderFrame js.Callback
-	renderFrame = js.NewCallback(func(args []js.Value) {
+	var renderFrame js.Func
+	renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		// Handle window resizing
 		curBodyW := doc.Get("body").Get("clientWidth").Float()
 		curBodyH := doc.Get("body").Get("clientHeight").Float()
@@ -62,6 +63,7 @@ func main() {
 		ctx.Call("fill")
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
+		return nil
 	})
 	defer renderFrame.Release()
 

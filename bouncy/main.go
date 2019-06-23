@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"strconv"
@@ -34,59 +33,66 @@ func main() {
 
 	dt := DotThing{speed: 160, size: 6}
 
-	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
+	mouseMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		e := args[0]
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
+		return nil
 	})
 	defer mouseMoveEvt.Release()
 
 	// Event handler for count range
-	countChangeEvt := js.NewCallback(func(args []js.Value) {
+	countChangeEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
 		if err != nil {
-			log.Println("Invalid value", err)
-			return
+			println("Invalid value", err)
+			return nil
 		}
 		dt.SetNDots(intVal)
+		return nil
 	})
 	defer countChangeEvt.Release()
 
 	// Event handler for speed range
-	speedInputEvt := js.NewCallback(func(args []js.Value) {
+	speedInputEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
-			log.Println("Invalid value", err)
-			return
+			println("invalid value", err)
+			return nil
 		}
 		dt.speed = fval
+		return nil
 	})
 	defer speedInputEvt.Release()
 
 	// Event handler for size
-	sizeChangeEvt := js.NewCallback(func(args []js.Value) {
+	sizeChangeEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
 		if err != nil {
-			log.Println("Invalid value")
+			println("invalid value", err)
+			return nil
 		}
 		dt.size = intVal
+		return nil
 	})
 	defer sizeChangeEvt.Release()
 
 	// Event handler for lines toggle
-	lineChangeEvt := js.NewCallback(func(args []js.Value) {
+	lineChangeEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		dt.lines = evt.Get("target").Get("checked").Bool()
+		return nil
 	})
 	defer lineChangeEvt.Release()
 
 	// Event handler for dashed toggle
-	dashedChangeEvt := js.NewCallback(func(args []js.Value) {
+	dashedChangeEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		dt.dashed = evt.Get("target").Get("checked").Bool()
+		return nil
 	})
 	defer dashedChangeEvt.Release()
 
@@ -99,12 +105,12 @@ func main() {
 
 	dt.SetNDots(100)
 	dt.lines = false
-	var renderFrame js.Callback
+	var renderFrame js.Func
 	var tmark float64
 	var markCount = 0
 	var tdiffSum float64
 
-	renderFrame = js.NewCallback(func(args []js.Value) {
+	renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		now := args[0].Float()
 		tdiff := now - tmark
 		tdiffSum += now - tmark
@@ -115,7 +121,7 @@ func main() {
 		}
 		tmark = now
 
-		// Pool window size to handle resize
+		// Pull window size to handle resize
 		curBodyW := doc.Get("body").Get("clientWidth").Float()
 		curBodyH := doc.Get("body").Get("clientHeight").Float()
 		if curBodyW != width || curBodyH != height {
@@ -126,6 +132,7 @@ func main() {
 		dt.Update(tdiff / 1000)
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
+		return nil
 	})
 	defer renderFrame.Release()
 

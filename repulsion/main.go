@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"strconv"
@@ -34,32 +33,35 @@ func main() {
 
 	dt := DotThing{speed: 160}
 
-	mouseMoveEvt := js.NewCallback(func(args []js.Value) {
+	mouseMoveEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		e := args[0]
 		mousePos[0] = e.Get("clientX").Float()
 		mousePos[1] = e.Get("clientY").Float()
+		return nil
 	})
 	defer mouseMoveEvt.Release()
 
-	countChangeEvt := js.NewCallback(func(args []js.Value) {
+	countChangeEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		intVal, err := strconv.Atoi(evt.Get("target").Get("value").String())
 		if err != nil {
-			log.Println("Invalid value", err)
-			return
+			println("Invalid value", err)
+			return nil
 		}
 		dt.SetNDots(intVal)
+		return nil
 	})
 	defer countChangeEvt.Release()
 
-	speedInputEvt := js.NewCallback(func(args []js.Value) {
+	speedInputEvt := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		evt := args[0]
 		fval, err := strconv.ParseFloat(evt.Get("target").Get("value").String(), 64)
 		if err != nil {
-			log.Println("Invalid value", err)
-			return
+			println("Invalid value", err)
+			return nil
 		}
 		dt.speed = fval
+		return nil
 	})
 	defer speedInputEvt.Release()
 
@@ -70,12 +72,12 @@ func main() {
 
 	dt.SetNDots(100)
 	dt.lines = false
-	var renderFrame js.Callback
+	var renderFrame js.Func
 	var tmark float64
 	var markCount = 0
 	var tdiffSum float64
 
-	renderFrame = js.NewCallback(func(args []js.Value) {
+	renderFrame = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		now := args[0].Float()
 		tdiff := now - tmark
 		tdiffSum += now - tmark
@@ -97,6 +99,7 @@ func main() {
 		dt.Update(tdiff / 1000)
 
 		js.Global().Call("requestAnimationFrame", renderFrame)
+		return nil
 	})
 	defer renderFrame.Release()
 
