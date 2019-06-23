@@ -1,4 +1,4 @@
-# go 1.11 webassembly experiments
+# go webassembly experiments
 
 - [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
 - [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
