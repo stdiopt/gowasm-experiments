@@ -7,6 +7,7 @@
 - [splashy](https://stdiopt.github.io/gowasm-experiments/splashy)
 - [arty](https://stdiopt.github.io/gowasm-experiments/arty/client)
 - [hexy](https://stdiopt.github.io/gowasm-experiments/hexy) **NEW**
+- [bittune](https://stdiopt.github.io/gowasm-experiments/bittune) **NEW**
 
 ## Building and running
 

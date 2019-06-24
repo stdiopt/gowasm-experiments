@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>go webassembly - bittune</title>
+		<style>
+			body > * {margin:5px;}
+			#beat {display:flex;flex-flow:row;}
+			.step {background:#aaa;}
+			.step:nth-child(2n+1) {background:#afafaf;}
+			.step:nth-child(4n+1) {background:#919191;}
+			.step.current {box-shadow:0 0 10px red; z-index:100;}
+			.key {width:40px;height:30px;border: solid 1px black; cursor:pointer; transition: all .3s}
+			.key.active {background: yellow; box-shadow: 0 0 10px yellow; z-index:200;}
+		</style>
+		<script src="wasm_exec.js"></script>
+		<script>
+			const go = new Go();
+			WebAssembly.instantiateStreaming(fetch('main.wasm'),go.importObject).then( res=> {
+				go.run(res.instance)	
+			})
+		</script>
+	</head>
+	<body>
+		Using <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioContext">Web Audio API</a>
+		<div id="beat"></div>
+		<div class="controls"> 
+			<button id="play">play</button>
+			<input id="bpm" type="range" min="20" max="140">
+			<label for="bpm">80 bpm</label>
+			<input id="tlen" type="range" min="4" max="32">
+			<label for="tlen">32</label>
+		</div>
+		<a class="source" href="https://github.com/stdiopt/gowasm-experiments/tree/master/bittune" target="_blank">[source]</a>
+	</body>
+</html>
