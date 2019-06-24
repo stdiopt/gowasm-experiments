@@ -28,7 +28,6 @@ type dom struct {
 type audioThing struct {
 	ctx js.Value
 	el  dom
-	//beatEl js.Value
 
 	ins     []func()
 	seq     []bool
@@ -80,7 +79,6 @@ func (t *audioThing) Start() {
 	t.wn = t.ctx.Call("createScriptProcessor", bufSize, 1, 1)
 	whiteNoiseFn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		e := args[0]
-		bufSize := 4096
 		out := e.Get("outputBuffer").Call("getChannelData", 0)
 		for i := 0; i < bufSize; i++ {
 			out.SetIndex(i, rand.Float64()*2-1)
@@ -185,7 +183,7 @@ func (t *audioThing) handleEvents() {
 	defer handleHashChange.Release()
 	js.Global().Call("addEventListener", "hashchange", handleHashChange)
 
-	// handle Bpm input range
+	// handle bpm input
 	handleBpmInput := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		e := args[0]
 		sval := e.Get("target").Get("value").String()
@@ -202,6 +200,7 @@ func (t *audioThing) handleEvents() {
 	defer handleBpmInput.Release()
 	t.el.bpm.Call("addEventListener", "input", handleBpmInput)
 
+	// handle track length input
 	handleTrackLenInput := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		e := args[0]
 		sval := e.Get("target").Get("value").String()
@@ -281,7 +280,6 @@ func (t *audioThing) hashRestore() {
 		for j := 7; j >= 0; j-- {
 			v := ((bitbuf[i] >> uint(j)) & 1) != 0
 			steps = append(steps, v)
-			// Set the thing
 			el := doc.Call("querySelector",
 				fmt.Sprintf(`[key="%d"]`, len(steps)-1),
 			)
@@ -391,7 +389,6 @@ func (t *audioThing) playCHithat() {
 
 }
 
-// to use lstFreq per instrument
 func (t *audioThing) createTune(freq float64) func() {
 	return func() {
 		currentTime := t.ctx.Get("currentTime").Float()
