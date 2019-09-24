@@ -1,13 +1,15 @@
 # go webassembly experiments
 
+Needs go1.13
+
 - [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
 - [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
 - [repulsion](https://stdiopt.github.io/gowasm-experiments/repulsion)
 - [bumpy](https://stdiopt.github.io/gowasm-experiments/bumpy)
 - [splashy](https://stdiopt.github.io/gowasm-experiments/splashy)
 - [arty](https://stdiopt.github.io/gowasm-experiments/arty/client)
-- [hexy](https://stdiopt.github.io/gowasm-experiments/hexy) **NEW**
-- [bittune](https://stdiopt.github.io/gowasm-experiments/bittune) **NEW**
+- [hexy](https://stdiopt.github.io/gowasm-experiments/hexy)
+- [bittune](https://stdiopt.github.io/gowasm-experiments/bittune)
 
 ## Building and running
 

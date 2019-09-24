@@ -1,6 +1,6 @@
 module github.com/stdiopt/gowasm-experiments
 
-go 1.12
+go 1.13
 
 require (
 	github.com/ByteArena/box2d v1.0.2
