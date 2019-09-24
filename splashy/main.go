@@ -391,7 +391,7 @@ type QuadFX struct {
 
 	quadBuf js.Value
 
-	vertexData js.TypedArray
+	vertexData js.Value
 }
 
 func (q *QuadFX) Init(gl js.Value, frag string) error {
@@ -400,10 +400,15 @@ func (q *QuadFX) Init(gl js.Value, frag string) error {
 	if err != nil {
 		return err
 	}
-	q.vertexData = js.TypedArrayOf([]float32{
+	vertexData := []float32{
 		0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
 		0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
-	})
+	}
+	// go1.13 removed TypedArrayOf https://github.com/golang/go/issues/31980
+	q.vertexData = js.Global().Get("Float32Array").New(12)
+	for i, v := range vertexData {
+		q.vertexData.SetIndex(i, v)
+	}
 
 	q.aPosition = gl.Call("getAttribLocation", q.prog, "a_position")
 	q.aTexCoord = gl.Call("getAttribLocation", q.prog, "a_texCoord")
@@ -435,7 +440,6 @@ func (q *QuadFX) Render(gl js.Value) {
 }
 
 func (q *QuadFX) Release() {
-	q.vertexData.Release()
 	// TODO: gl release
 }
 
@@ -496,7 +500,6 @@ func createTexture(gl js.Value, width, height int) js.Value {
 		js.Null(),
 	)
 
-	// set the filtering so we don't need mips
 	gl.Call("texParameteri", gl.Get("TEXTURE_2D"), gl.Get("TEXTURE_MIN_FILTER"), gl.Get("LINEAR"))
 	gl.Call("texParameteri", gl.Get("TEXTURE_2D"), gl.Get("TEXTURE_MAG_FILTER"), gl.Get("LINEAR"))
 	gl.Call("texParameteri", gl.Get("TEXTURE_2D"), gl.Get("TEXTURE_WRAP_S"), gl.Get("CLAMP_TO_EDGE"))

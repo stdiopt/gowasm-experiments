@@ -37,6 +37,8 @@ type CanvasClient struct {
 	ctx      js.Value
 	ws       js.Value
 	im       js.Value
+	// will hold js part of the image
+	byteArray js.Value
 
 	colorHex  string
 	lineWidth float64
@@ -81,8 +83,10 @@ func (c *CanvasClient) initCanvas() {
 	c.height = c.canvasEl.Get("height").Float()
 	c.ctx = c.canvasEl.Call("getContext", "2d")
 	c.im = c.ctx.Call("createImageData", 1, 1)
+	c.byteArray = js.Global().Get("Uint8Array").New(1 * 4)
 	c.painter.OnInit = func(m painter.InitOP) {
 		c.im = c.ctx.Call("createImageData", m.Width, m.Height)
+		c.byteArray = js.Global().Get("Uint8Array").New(m.Width * m.Height * 4)
 		c.SetStatus("connected")
 		c.initEvents()
 	}
@@ -108,7 +112,7 @@ func (c *CanvasClient) initConnection() {
 		c.SetStatus("connecting...")
 		c.ws = js.Global().Get("WebSocket").New(c.addr)
 		onopen := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			c.SetStatus("receiving...")
+			c.SetStatus("receiving... (it takes some time)")
 			return nil
 		})
 		defer onopen.Release()
@@ -240,8 +244,8 @@ func (c *CanvasClient) SetStatus(txt string) {
 }
 func (c *CanvasClient) draw() {
 	// golang buffer
-	ta := js.TypedArrayOf(c.painter.ImageData())
-	c.im.Get("data").Call("set", ta)
-	ta.Release()
+	// Needs to be a Uint8Array while image data have Uint8ClampedArray
+	js.CopyBytesToJS(c.byteArray, c.painter.ImageData())
+	c.im.Get("data").Call("set", c.byteArray)
 	c.ctx.Call("putImageData", c.im, 0, 0)
 }
