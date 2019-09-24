@@ -1,6 +1,6 @@
 # go webassembly experiments
 
-Needs go1.13
+Requires go1.13
 
 - [bouncy](https://stdiopt.github.io/gowasm-experiments/bouncy)
 - [rainbow-mouse](https://stdiopt.github.io/gowasm-experiments/rainbow-mouse)
